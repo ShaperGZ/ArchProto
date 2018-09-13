@@ -1,0 +1,7 @@
+variable,max,min,additional,return
+bd_depth,s_d_max=p_un_depth[1]+crd_width,s_d_min=p_un_depth[2]+crd_width,nil,single
+bd_depth,d_d_max=infinity,d_d_min=(p_un_depth[2]*2.0)+crd_width,nil,double
+bd_depth,l_d_max=infinity,l_d_min=d_d_min+(4*un_width),nil,L-shape_d
+bd_width,l_w_max=infinity,l_w_min=l_d_min,L-shape_d,L-shape
+bd_width,u_w_max=infinity,u_w_min=(d_d_min*2.0)+(4*un_width),L-shape,U-shape
+bd_depth,o_d_max=bd_width,o_d_min=u_w_min,U-shape,O-shape

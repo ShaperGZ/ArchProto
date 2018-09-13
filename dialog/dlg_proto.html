@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prototype</title>
+    <style>
+        .titles{
+            font-size: 12px;
+        }
+        .contents{
+            font-size:10px;
+            vertical-align: center;
+        }
+
+    </style>
+    <script src="d3.js"></script>
+</head>
+<body>
+
+<form>
+    <!--customize composition-->
+    <div id="div_1" style="width:10pt; height: 30pt; background-color: red"></div>
+    <div id="div_2" style="width:10pt; height: 30pt; background-color:green"></div>
+
+    <span id="title" class="titles" > Composition Customization</span><br>
+    <table >
+        <tbody>
+            <tr>
+                <td><span class="contents"> D </span></td>
+                <td><span class="contents"> L </span></td>
+                <td><span class="contents"> U </span></td>
+                <td><span class="contents"> O </span></td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" id="cb_double" /></td>
+                <td><input type="checkbox" id="cb_L-shape" /></td>
+                <td><input type="checkbox" id="cb_U-shape" /></td>
+                <td><input type="checkbox" id="cb_O-shape" /></td>
+            </tr>
+        </tbody>
+    </table>
+    <input class="contents" id="test" value="input here"/>
+    <div id="viz"></div>
+    <script type="text/javascript">
+
+        var sampleSVG = d3.select("#viz")
+            .append("svg")
+            .attr("width", 100)
+            .attr("height", 100);
+
+        sampleSVG.append("circle")
+            .style("stroke", "gray")
+            .style("fill", "white")
+            .attr("r", 40)
+            .attr("cx", 50)
+            .attr("cy", 50)
+            .on("mouseover", function(){d3.select(this).style("fill", "aliceblue");})
+            .on("mouseout", function(){d3.select(this).style("fill", "white");});
+
+    </script>
+
+</form>
+<script src="piechart.js"></script>
+<script>
+    function set_param(key,value){
+        obj=document.getElementById(key);
+        console.log(obj.type);
+        if (obj.type=='checkbox'){
+            obj.checked=value;
+        }
+        else if (obj.type=='text'){
+            obj.value = value;
+        }
+        else{
+            obj.innerHTML=value;
+        }
+    }
+
+    set_param('title','My New Title')
+</script>
+</body>
+</html>
