@@ -41,7 +41,8 @@ module ArchProto
       # dangerous recursion
       # ArchProto::WebDialogWrapper.set(name, self)
       @@created_objects[name] = self
-      Sketchup.active_model.selection.add_observer(WebDialogSelectionObserver.new(self))
+      obs = Sketchup.active_model.selection.add_observer(WebDialogSelectionObserver.new(self))
+      ObserverManger.Add(Sketchup.active_model.selection, obs)
       # do somthing
     end
 

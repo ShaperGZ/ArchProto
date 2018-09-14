@@ -18,10 +18,21 @@ module ArchProto
   @@is_first_time_connect=true
 
   def self.reload_scripts()
+
     directory=self.get_file_path('')
-    # list all profile files in the directory
-    files=Dir.glob(directory+'/*.rb')
-    files.each{|f|
+    ordered_files = []
+    ordered_files << directory + '/constances.rb'
+    ordered_files += Dir.glob(directory + '/arch_util*.rb')
+    ordered_files << directory + '/observer_manager.rb'
+    ordered_files << directory + '/archi.rb'
+    ordered_files << directory + '/building_block.rb'
+    ordered_files << directory + '/html_dialog_wrapper.rb'
+    ordered_files += Dir.glob(directory + '/proto*.rb')
+    ordered_files += Dir.glob(directory + '/swit*.rb')
+    ordered_files += Dir.glob(directory + '/wd_*.rb')
+    ordered_files += Dir.glob(directory + '/bh_*.rb')
+
+    ordered_files.each {|f|
       name=f.split('/')[-1]
       if name!='entry.rb'
         p "loading: #{f}"

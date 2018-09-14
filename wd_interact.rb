@@ -40,18 +40,21 @@ class  WD_Interact < ArchProto::HTMLDialogWrapper
     # Definitions.load()
 
     #@dlg = UI::HtmlDialog.new("AttributeInfo", true, "Information", 739, 641, 150, 300, true)
-    @dlg = UI::HtmlDialog.new({
-        :scrollable=>true,
-        :resizable=>true,
-        :min_width=>150,
-        :min_height=>300,
-        :style => UI::HtmlDialog::STYLE_DIALOG
-                              })
-    #file = File.join(__dir__,"/dialogs/dialog_interact.html")
-    file='file:///D:/SketchupRuby/Prototype/dialog/dlg_proto.html'
-    @dlg.set_url(file)
-    # @dlg.set_file(file)
-    @dlg.set_on_closed{close()}
+    if @dlg == nil
+      @dlg = UI::HtmlDialog.new({
+                                    :scrollable => true,
+                                    :resizable => true,
+                                    :min_width => 150,
+                                    :min_height => 300,
+                                    :style => UI::HtmlDialog::STYLE_DIALOG
+                                })
+      #file = File.join(__dir__,"/dialogs/dialog_interact.html")
+      file = 'file:///D:/SketchupRuby/Prototype/dialog/dlg_proto.html'
+      @dlg.set_url(file)
+      # @dlg.set_file(file)
+      #@dlg.set_on_closed{close()}
+    end
+
     @dlg.show
 
     # p 'wd.interact adding action callback'
@@ -89,7 +92,7 @@ class  WD_Interact < ArchProto::HTMLDialogWrapper
     p "selected a smart object #{entity}"
 
     @subjectGP=entity
-    @subjectBB=Proto_Apt.create_or_get(entity,'Params.csv',true)
+    @subjectBB = Proto_Apt.create_or_get(entity, 'Params.csv', false)
     # @subjectIT=@subjectBB.get_updator_by_type(BH_Interact)
     # @subjectIT.set_dlg(@dlg)
     # @subjectIT.update_dialog_data()

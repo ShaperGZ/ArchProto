@@ -3,6 +3,7 @@ load 'd:/SketchupRuby/Prototype/building_block.rb'
 
 class Proto_Apt < BuildingBlock
 
+
   def self.create_or_get(g,param_file=nil,invalidate_created=true)
     self.remove_deleted()
     if @@created_objects.key?(g.guid)
@@ -37,7 +38,7 @@ class Proto_Apt < BuildingBlock
 
 
     @updators << BH_Dimension.new(g,self)
-    @updators << BH_ReadAttrToMemory.new(g,self)
+    #@updators << BH_ReadAttrToMemory.new(g,self)
     @updators << @g_composition
   end
 

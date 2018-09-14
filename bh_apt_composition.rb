@@ -33,20 +33,20 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
   def gen_composition
     clear_generated
-    p "instance var=#{instance_variables}"
+    #p "instance var=#{instance_variables} "
 
     # 1. get size
     yscale=host.gp.transformation.yscale
     xscale=host.gp.transformation.xscale
 
     local_bounds=Op_Dimension.local_bound(host.gp)
-    circulation_w=@crd_width
-    bd_width=@bd_width
-    bd_depth=@bd_depth
-    bd_height=@bd_height
+    circulation_w = host.attr('crd_width')
+    bd_width = host.attr('bd_width')
+    bd_depth = host.attr('bd_depth')
+    bd_height = host.attr('bd_height')
 
-    un_width=@un_width
-    un_depth=@un_depth
+    un_width = host.attr('un_width')
+    un_depth = host.attr('un_depth')
 
     # 2. generate spaces
     if @availables.include? 'O-shape'
@@ -166,6 +166,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
         rw = un_depth
         p1 = local_bounds.min
         s1 = [bd_width, un_depth, bd_height]
+        #p "print from nh_apt_composition.rb line[169], s=#{s} "
         create_geometry("occupy",p1,s1)
 
         #   2.corridor
@@ -196,6 +197,10 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
   end
 
   def create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
+    if position == nil or size == nil
+      p "nil input found pos=#{position} size=#{size}"
+    end
+
     #p @availables
     p=position.clone
     s=size.clone
@@ -206,7 +211,12 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
         p[i]=p[i].m if not p[i].nil?
       end
       for i in 0..s.size-1
-        s[i]=s[i].m
+        begin
+          s[i] = s[i].m
+        rescue
+          p "Exception i=#{i}, s=#{s} "
+          throw Exception
+        end
       end
     end
 

@@ -17,6 +17,7 @@ module Arch
     end
   end
 
+  # InstanceObserver 不稳定，容易导致死机所以暂时不适用
   class InstObs < Sketchup::InstanceObserver
     def initialize(host)
       @host=host
@@ -123,10 +124,12 @@ module Arch
     end
     def add_entObserver(observer)
       obs=@gp.add_observer(observer)
+      ObserverManger.Add(@gp, obs)
       @entObs<<observer
     end
     def add_entsObserver(observer)
       obs=@gp.entities.add_observer(observer)
+      ObserverManger.Add(@gp, obs)
       @entsObs<<observer
     end
     def enableUpdate()

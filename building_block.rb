@@ -1,5 +1,4 @@
-
-
+require "ostruct"
 
 
 class BuildingBlock < Arch::Block
@@ -107,8 +106,11 @@ class BuildingBlock < Arch::Block
     keys.each{|k|
       p "setting @#{k}=#{attrdict[k]}"
       instance_variable_set('@'+k,attrdict[k])
+      class << self
+        attr_accessor k
+      end
     }
-    p "instance_vars= #{instance_variables}"
+    #p "instance_vars= #{instance_variables}"
   end
 
   def set_ftfhs()
