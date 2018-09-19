@@ -5,7 +5,7 @@ module ArchProto
   end
 end
 
-class  WD_Interact < ArchProto::HTMLDialogWrapper
+class WD_Interact < ArchProto::HTMLDialogWrapper
   attr_accessor :subject
 
   @@singleton=nil
@@ -34,12 +34,10 @@ class  WD_Interact < ArchProto::HTMLDialogWrapper
     @htl_rm=[]
   end
 
-
   def open()
     return if @visible
     # Definitions.load()
-
-    #@dlg = UI::HtmlDialog.new("AttributeInfo", true, "Information", 739, 641, 150, 300, true)
+    # @dlg = UI::HtmlDialog.new("AttributeInfo", true, "Information", 739, 641, 150, 300, true)
     if @dlg == nil
       @dlg = UI::HtmlDialog.new({
                                     :scrollable => true,
@@ -56,7 +54,6 @@ class  WD_Interact < ArchProto::HTMLDialogWrapper
     end
 
     @dlg.show
-
     # p 'wd.interact adding action callback'
     # @dlg.add_action_callback("updateAttr"){|dialog,params|update_attr(params)}
     # @dlg.add_action_callback("normal_mode"){|dialog,params|normal_mode()}

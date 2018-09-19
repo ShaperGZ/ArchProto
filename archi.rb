@@ -117,9 +117,14 @@ module Arch
       @entObs=[]
       @entsObs=[]
       @updators=[]
-      add_entsObserver(EntsObs.new(self))
-      add_entObserver(EntObs.new(self))
-      add_entObserver(InstObs.new(self))
+
+      #ObserverManager.Add(@gp.entities,EntsObs.new(self))
+      ObserverManager.Add(@gp,EntObs.new(self))
+      ObserverManager.Add(@gp,InstObs.new(self))
+
+      # add_entsObserver(EntsObs.new(self))
+      # add_entObserver(EntObs.new(self))
+      # add_entObserver(InstObs.new(self))
       @@created_objects[gp]=self
     end
     def add_entObserver(observer)
@@ -128,8 +133,8 @@ module Arch
       @entObs<<observer
     end
     def add_entsObserver(observer)
+
       obs=@gp.entities.add_observer(observer)
-      ObserverManger.Add(@gp, obs)
       @entsObs<<observer
     end
     def enableUpdate()
