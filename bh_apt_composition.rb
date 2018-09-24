@@ -4,9 +4,9 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
     super(gp,host)
     @ent_mod_counter=0
     @availables=[]
-
+    #@composition is a list of abstract geometriestag
+    @composition=[]
     @spaces=Hash.new()
-
     @switcher=SW_Composition.new()
   end
 
@@ -193,6 +193,10 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       end
     end
 
+
+  end
+
+  def create_abs_geometries(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true)
 
   end
 

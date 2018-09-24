@@ -61,12 +61,14 @@ class BuildingBlock < Arch::Block
     end
     return nil
   end
-  
+
+  attr_accessor :abstract_gemetries
   def initialize(gp, default_param_file=nil)
     super(gp)
     if default_param_file!=nil
       BuildingBlock.read_param(@gp,default_param_file)
     end
+    abstract_gemetries=[]
     add_updators()
   end
 

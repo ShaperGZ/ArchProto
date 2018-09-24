@@ -103,6 +103,7 @@ module Arch
     def self.created_objects
       @@created_objects
     end
+
     def self.create_or_get(g)
       if @@created_objects.key?(g)
         return @@created_objects[g]
@@ -118,9 +119,10 @@ module Arch
       @entsObs=[]
       @updators=[]
 
+
       #ObserverManager.Add(@gp.entities,EntsObs.new(self))
-      ObserverManager.Add(@gp,EntObs.new(self))
-      ObserverManager.Add(@gp,InstObs.new(self))
+      #ObserverManager.Add(@gp,EntObs.new(self))
+      #ObserverManager.Add(@gp,InstObs.new(self))
 
       # add_entsObserver(EntsObs.new(self))
       # add_entObserver(EntObs.new(self))
@@ -151,6 +153,10 @@ module Arch
     end
     def onClose(e)
       @updators.each{|u| u.onClose(e)} if enableUpdate and @gp.valid?
+    end
+
+    def invalidate()
+      @updators.each{|u| u.invalidate()} if enableUpdate and @gp.valid?
     end
 
     # invalidated 是一个长度为三的bool array, 指明那种变化已过期
