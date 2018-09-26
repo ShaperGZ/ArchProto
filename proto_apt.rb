@@ -40,6 +40,8 @@ class Proto_Apt < BuildingBlock
     @updators << BH_Dimension.new(g,self)
     #@updators << BH_ReadAttrToMemory.new(g,self)
     @updators << @g_composition
+
+    # @updators << BH_Create_geometries.new(g,self)
   end
 
 

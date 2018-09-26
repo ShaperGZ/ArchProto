@@ -43,12 +43,14 @@ module Arch
       @host=host
       @last_transformation=@host.gp.transformation.clone
     end
+
     def onEraseEntity(entity)
       # model= Sketchup.active_model
       # model.start_operation('onErase')
       @host.onEraseEntity(entity) if @host.enableUpdate
       # model.commit_operation
     end
+
     def onChangeEntity(entity)
       return if not @host.gp.valid?
       invalidated=ArchUtil.invalidated_transformation?(@last_transformation, @host.gp.transformation)
@@ -69,10 +71,14 @@ module Arch
   class BlockUpdateBehaviour
     attr_accessor :gp
     attr_accessor :host
+    attr_accessor :abstract_geometries
+    attr_accessor :concrete_geometries
     def initialize(gp,host=nil)
       @gp=gp
       @host=host
       @enableUpdate = true
+      @abstract_geometries=[]
+      @concrete_geometries=[]
     end
 
     def onOpen(e)
@@ -94,7 +100,6 @@ module Arch
     end
 
     def invalidate()
-
     end
   end
 

@@ -19,6 +19,7 @@ module MeshUtil
       @rotation=0
       @color="white"
       @bounds=[]
+      @reflection=[1,1,1]
       @vects=[
           Geom::Vector3d.new(1,0,0),
           Geom::Vector3d.new(0,1,0),
@@ -27,6 +28,27 @@ module MeshUtil
       @name=""
       @alignment= Alignment::SW
       @attributes=Hash.new
+    end
+
+    def set_pos(pos)
+      @position=pos
+      return self
+    end
+
+    def set_rote(rots)
+      @rotation=rots
+      return self
+      #remember to set the vectors
+    end
+
+    def set_alignment(alignment)
+      @alignment=alignment
+      return self
+    end
+
+    def set_reflection(reflection)
+      @reflection=reflection
+      return self
     end
 
     def mesh(parent=nil)
@@ -60,10 +82,19 @@ module MeshUtil
       @size=[x,y,z]
     end
 
+    def clone()
+      dup=AttrExtrusion.new(@base_pts,@height)
+      dup.position=@position
+      dup.vects=@vects
+      dup.size=@size
+      dup.reflection=@reflection
+      dup.rotation=@rotation
+      dup.alignment=@alignment
+      return dup
+    end
+
     def mesh(parent=nil)
       #reflect, rotate, translate
-
-
       #TODO: needs rotation, rotate the base pts first
 
       m=MeshUtil.extrude_to_mesh_faces(@base_pts,@height,parent)
@@ -73,6 +104,23 @@ module MeshUtil
   class AttrBox < AttrGeo
     def initialize()
       super()
+    end
+
+    def clone()
+      dup=AttrBox.new
+      dup.position=@position
+      dup.vects=@vects
+      dup.size=@size
+      dup.reflection=@reflection
+      dup.rotation=@rotation
+      dup.alignment=@alignment
+      return dup
+    end
+
+    def format(long=false)
+      txt=""
+      txt+="#{name}: pos=#{@position},size=#{@size},color=#{@color}"
+      return txt
     end
 
     def to_extrusion()
@@ -91,27 +139,75 @@ module MeshUtil
       return ext
     end
 
-    def set_pos(pos)
-      @position=pos
-    end
-
-    def set_rote(rots)
-      @rotation=rots
-      #remember to set the vectors
-    end
 
     def set_xvect(vect)
       xvect=vect
       zvect=Geom::Vector3d.new(0,0,1)
       yvect=zvect.cross xvect
       @vects=[xvect,yvect,zvect]
+      return self
     end
 
     def mesh(parent=nil)
-      org=@position
+      if @position.is_a? Array
+        pos=Geom::Point3d.new(@position)
+      else
+        pos=@position.clone
+      end
+      org=pos
+
+      vects = @vects
+      xvect=vects[0]
+      yvect=vects[1]
+      zvect=vects[2]
+      size=@size
+
+      xvect.length=size[0]
+      xvecth=xvect.clone()
+      xvecth.length=size[0]/2.0
+
+      yvect.length=size[1]
+      yvecth=yvect.clone()
+      yvecth.length=size[1]/2.0
 
 
-      m=MeshUtil.box(org,@size,@rotation,parent)
+      case @alignment
+      when Alignment::SE
+        # SE
+        org = pos - xvect
+      when Alignment::NE
+        # NE
+        p "pos:#{pos}, x:#{xvect}, y:#{yvect}"
+        p "pos.c:#{pos.class}, x.c:#{xvect.class} y.c:#{yvect.class}"
+        org = pos - xvect - yvect
+      when Alignment::NW
+        # NW
+        org = pos - yvect
+      when Alignment::E
+        # E
+        org = pos - xvect - yvecth
+      when Alignment::S
+        # S
+        org = pos - xvecth
+      when Alignment::W
+        # W
+        org = pos - yvecth
+      when Alignment::N
+        # N
+        org = pos - xvecth - yvect
+      when Alignment::Center
+        org = pos - xvecth - yvecth
+      end
+
+      flip=(@reflection[0]*@reflection[1]*@reflection[2])<0
+      trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
+      trans_translate=Geom::Transformation.translation(pos)
+      m=MeshUtil.box(Geom::Point3d.new,@size,@rotation,parent,flip)
+      # m=MeshUtil.box(pos,@size,@rotation,parent,flip)
+
+      # m.transform! (trans_reflect * trans_translate)
+      m.transform! trans_reflect
+      m.transform! trans_translate
       return m
     end
   end
@@ -119,11 +215,13 @@ module MeshUtil
 
   def MeshUtil.add_model(mesh,parent=nil,smooth=0)
     parent=Sketchup.active_model.entities.add_group if parent==nil
+
+
     parent.entities.add_faces_from_mesh(mesh,smooth)
     return parent
   end
 
-  def MeshUtil.box(pos=nil,size=nil,rot=nil,mesh=nil)
+  def MeshUtil.box(pos=nil,size=nil,rot=nil,mesh=nil, flip=false)
     pos=[0,0,0] if pos == nil
     size=[1,1,1] if size == nil
 
@@ -132,11 +230,18 @@ module MeshUtil
     z=size[2]
 
     pts=[]
-    pts<<Geom::Point3d.new(pos)
+    if pos.is_a? Array
+      pos=Geom::Point3d.new(pos)
+    elsif pos.is_a? Geom::Vector3d
+      pos=Geom::Point3d.new(pos.x,pos.y,pos.z)
+    elsif !pos.is_a? Geom::Point3d
+      return nil
+    end
+    pts<<pos
     pts<<pts[0] + Geom::Vector3d.new(x,0,0)
     pts<<pts[0] + Geom::Vector3d.new(x,y,0)
     pts<<pts[0] + Geom::Vector3d.new(0,y,0)
-    pts.reverse!
+    pts.reverse! if !flip
 
     mesh=Geom::PolygonMesh.new if mesh==nil
 
@@ -147,7 +252,7 @@ module MeshUtil
       end
     end
 
-    MeshUtil.extrude_to_mesh_faces(pts,z,mesh)
+    return MeshUtil.extrude_to_mesh_faces(pts,z,mesh)
     #t2=Geom::Transformation.rotation(rot)
     #mesh.transforma *= t1
 

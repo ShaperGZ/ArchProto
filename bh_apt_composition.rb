@@ -20,10 +20,25 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
 
   def invalidate()
+    p "///////////////// invalidate /////////////"
     @availables = @switcher.get(@gp)
     @gp.set_attribute("ProtoApt","available_compositions",@availables)
+
+    @abstract_geometries=[]
+
+    t1=Time.now
     gen_composition
-    web_sync
+    t2=Time.now
+    p "invalidation took #{t2-t1} seconds"
+
+    _add_all_abs_to_one
+
+    #versions < 2017 may not have html UI
+    begin
+      web_sync
+    rescue
+      p $!
+    end
 
   end
 
@@ -50,72 +65,150 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
     # 2. generate spaces
     if @availables.include? 'O-shape'
+      # Straight double loaded
+      #   1. occupy
+      rw = un_depth
+      p1 = local_bounds.min
+      s1 = [bd_width, un_depth, bd_height]
+      create_geometry("O1",p1,s1)
+
+      #   2.corridor
+      p2 = p1 + Geom::Vector3d.new(0,rw,0)
+      s2 = [bd_width, circulation_w, bd_height]
+      create_geometry("C1",p2,s2)
+
+      #   3. flank occupy AFt
+      w = bd_depth-(un_depth+circulation_w)*2
+      d = un_depth
+      p4=Geom::Point3d.new(0,bd_depth-un_depth-circulation_w,0)
+      s4 = [w,d,bd_height]
+      create_geometry("O3",p4,s4,-90)
+
+      #   3. flank circulation A
+      w = bd_depth-(un_depth+circulation_w)*2
+      d = circulation_w
+      # p5 = p2 + Geom::Vector3d.new(un_depth,circulation_w,0)
+      p5 = p4 + Geom::Vector3d.new(un_depth,0,0)
+      s5 = [w,d,bd_height]
+      create_geometry("C2",p5,s5,-90)
+
+      #   3. flank occupy ABk
+      w = bd_depth-(circulation_w+un_depth*2)*2
+      d = un_depth
+      offd=un_depth+circulation_w
+      p6 = p5 + Geom::Vector3d.new(offd,-un_depth,0)
+      s6 = [w,d,bd_height]
+      create_geometry("O4",p6,s6,-90,[-1,1,1])
+
+      #   3. flank occupy
+      w = bd_width-offd*2
+      d = un_depth
+      p7 = p2+Geom::Vector3d.new(un_depth+circulation_w,un_depth+circulation_w,0)
+      s7 = [w,d,bd_height]
+      create_geometry("O2",p7,s7,0,[1,-1,1])
+
+      #   3. flank occupy CFt
+      w = bd_depth-rw-circulation_w
+      d = un_depth
+      py=(un_depth)+circulation_w
+      p8 = Geom::Vector3d.new(bd_width, py,0)
+      s8 = s4
+      create_geometry("O5",p8,s8,90)
+
+      w = w
+      d = circulation_w
+      px=bd_width-un_depth
+      py=(un_depth)+circulation_w
+      p9 = Geom::Vector3d.new(px, py,0)
+      s9 = s5
+      create_geometry("C3",p9,s9,90)
+
+      w = w - un_depth
+      d = un_depth
+      px=bd_width-(un_depth*2)-circulation_w
+      py=(un_depth*2)+circulation_w
+      p9 = Geom::Vector3d.new(px, py,0)
+      s9 = s6
+      create_geometry("O6",p9,s9,90,[-1,1,1])
+
+      p10 = Geom::Point3d.new(bd_width,bd_depth,0)
+      s10 = [bd_width, un_depth, bd_height]
+      create_geometry("O7",p10,s10,180)
+
+      p11 = p10 - Geom::Vector3d.new(0,un_depth,0)
+      s11 =[bd_width,circulation_w,bd_height]
+      create_geometry("C4",p11,s11,180)
+
+      p12 = p10 - Geom::Vector3d.new(un_depth+circulation_w,un_depth+circulation_w,0)
+      s12 = s7
+      create_geometry("O8",p12,s12,0,[-1,-1,1])
+
     elsif @availables.include? 'U-shape'
       # Straight double loaded
       #   1. occupy
       rw = un_depth
       p1 = local_bounds.min
       s1 = [bd_width, un_depth, bd_height]
-      create_geometry("occupy",p1,s1)
+      create_geometry("O1",p1,s1)
 
       #   2.corridor
-      p2 = p1 + Geom::Vector3d.new(0,rw/yscale,0)
+      p2 = p1 + Geom::Vector3d.new(0,rw,0)
       s2 = [bd_width, circulation_w, bd_height]
-      create_geometry("corridor",p2,s2)
+      create_geometry("C1",p2,s2)
 
       #   3. flank occupy AFt
       w = bd_depth-rw-circulation_w
       d = un_depth
-      p4 = p2 + Geom::Vector3d.new(0,circulation_w/yscale,0)
+      p4=Geom::Point3d.new(0,bd_depth,0)
       s4 = [w,d,bd_height]
-      create_geometry("occupy",p4,s4,90,[1,-1,1])
+      create_geometry("O3",p4,s4,-90)
 
       #   3. flank circulation A
       w = bd_depth-rw-circulation_w
       d = circulation_w
-      p5 = p2 + Geom::Vector3d.new(un_depth/xscale,circulation_w/yscale,0)
+      # p5 = p2 + Geom::Vector3d.new(un_depth,circulation_w,0)
+      p5 = p4 + Geom::Vector3d.new(un_depth,0,0)
       s5 = [w,d,bd_height]
-      create_geometry("corridor",p5,s5,90,[1,-1,1])
+      create_geometry("C2",p5,s5,-90)
 
       #   3. flank occupy ABk
-      w = bd_depth-rw-circulation_w
+      w = bd_depth-rw-circulation_w-un_depth
       d = un_depth
-      offd=(un_depth*2)+circulation_w
-      p6 = p2 + Geom::Vector3d.new(offd/xscale,circulation_w/yscale,0)
+      offd=un_depth+circulation_w
+      p6 = p5 + Geom::Vector3d.new(offd,0,0)
       s6 = [w,d,bd_height]
-      create_geometry("occupy",p6,s6,90)
+      create_geometry("O4",p6,s6,-90,[-1,1,1])
 
       #   3. flank occupy
-      w = bd_width-(offd*2)
+      w = bd_width-offd*2
       d = un_depth
-      p7 = p6.clone
+      p7 = p2+Geom::Vector3d.new(un_depth+circulation_w,un_depth+circulation_w,0)
       s7 = [w,d,bd_height]
-      create_geometry("occupy",p7,s7)
+      create_geometry("O2",p7,s7,0,[1,-1,1])
 
-      #-------------------------------------------
       #   3. flank occupy CFt
       w = bd_depth-rw-circulation_w
       d = un_depth
       py=(un_depth)+circulation_w
-      p8 = Geom::Vector3d.new(bd_width/xscale, py/yscale,0)
+      p8 = Geom::Vector3d.new(bd_width, py,0)
       s8 = [w,d,bd_height]
-      create_geometry("occupy",p8,s8,90)
+      create_geometry("O5",p8,s8,90)
 
       w = w
       d = circulation_w
       px=bd_width-un_depth
       py=(un_depth)+circulation_w
-      p9 = Geom::Vector3d.new(px/xscale, py/yscale,0)
+      p9 = Geom::Vector3d.new(px, py,0)
       s9 = [w,d,bd_height]
-      create_geometry("corridor",p9,s9,90)
+      create_geometry("C3",p9,s9,90)
 
-      w = w
+      w = w - un_depth
       d = un_depth
-      px=bd_width-un_depth-circulation_w
-      py=(un_depth)+circulation_w
-      p9 = Geom::Vector3d.new(px/xscale, py/yscale,0)
+      px=bd_width-(un_depth*2)-circulation_w
+      py=(un_depth*2)+circulation_w
+      p9 = Geom::Vector3d.new(px, py,0)
       s9 = [w,d,bd_height]
-      create_geometry("occupy",p9,s9,90)
+      create_geometry("O6",p9,s9,90,[-1,1,1])
 
 
     elsif @availables.include? 'L-shape'
@@ -124,80 +217,111 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       rw = un_depth
       p1 = local_bounds.min
       s1 = [bd_width, un_depth, bd_height]
-      create_geometry("occupy",p1,s1)
+      create_geometry("O1",p1,s1)
 
       #   2.corridor
-      p2 = p1 + Geom::Vector3d.new(0,rw/yscale,0)
+      p2 = p1 + Geom::Vector3d.new(0,rw,0)
       s2 = [bd_width, circulation_w, bd_height]
-      create_geometry("corridor",p2,s2)
+      create_geometry("C1",p2,s2)
 
       #   3. flank occupy AFt
       w = bd_depth-rw-circulation_w
       d = un_depth
-      p4 = p2 + Geom::Vector3d.new(0,circulation_w/yscale,0)
+      p4=Geom::Point3d.new(0,bd_depth,0)
       s4 = [w,d,bd_height]
-      create_geometry("occupy",p4,s4,90,[1,-1,1])
+      create_geometry("O3",p4,s4,-90)
 
       #   3. flank circulation A
       w = bd_depth-rw-circulation_w
       d = circulation_w
-      p5 = p2 + Geom::Vector3d.new(un_depth/xscale,circulation_w/yscale,0)
+      # p5 = p2 + Geom::Vector3d.new(un_depth,circulation_w,0)
+      p5 = p4 + Geom::Vector3d.new(un_depth,0,0)
       s5 = [w,d,bd_height]
-      create_geometry("corridor",p5,s5,90,[1,-1,1])
+      create_geometry("C2",p5,s5,-90)
 
       #   3. flank occupy ABk
-      w = bd_depth-rw-circulation_w
+      w = bd_depth-rw-circulation_w-un_depth
       d = un_depth
-      offd=(un_depth*2)+circulation_w
-      p6 = p2 + Geom::Vector3d.new(offd/xscale,circulation_w/yscale,0)
+      offd=un_depth+circulation_w
+      p6 = p5 + Geom::Vector3d.new(offd,0,0)
       s6 = [w,d,bd_height]
-      create_geometry("occupy",p6,s6,90)
+      create_geometry("O4",p6,s6,-90,[-1,1,1])
 
       #   3. flank occupy
       w = bd_width-offd
       d = un_depth
-      p7 = p6.clone
+      p7 = p2+Geom::Vector3d.new(un_depth+circulation_w,un_depth+circulation_w,0)
       s7 = [w,d,bd_height]
-      create_geometry("occupy",p7,s7)
+      create_geometry("O2",p7,s7,0,[1,-1,1])
     else
       if @availables.include? 'double'
         # Straight double loaded
         #   1. occupy
+        p "double"
         rw = un_depth
         p1 = local_bounds.min
         s1 = [bd_width, un_depth, bd_height]
         #p "print from nh_apt_composition.rb line[169], s=#{s} "
-        create_geometry("occupy",p1,s1)
+        create_geometry("O1",p1,s1)
 
         #   2.corridor
-        p2 = p1 + Geom::Vector3d.new(0,rw/yscale,0)
+        p2 = p1 + Geom::Vector3d.new(0,rw,0)
         s2 = [bd_width, circulation_w, bd_height]
-        create_geometry("corridor",p2,s2)
+        create_geometry("C1",p2,s2)
 
         #   3. occupy
-        p3 = p2 + Geom::Vector3d.new(0,circulation_w/yscale,0)
+        p3 = p2 + Geom::Vector3d.new(0,circulation_w+un_depth,0)
         s3 = [bd_width, un_depth, bd_height]
-        # create_geometry("occupy",p3,s3)
+        create_geometry("O2",p3,s3,0,[1,-1,1])
       else
         # Straight single loaded
         #   1. occupy
+        p "single"
         rw = un_depth-circulation_w
         p1 = local_bounds.min
         s1 = [bd_width, un_depth, bd_height]
-        create_geometry("occupy",p1,s1)
+        create_geometry("O1",p1,s1)
 
         # 2.corridor
-        p2 = p1 + Geom::Vector3d.new(0,rw/yscale,0)
+        p2 = p1 + Geom::Vector3d.new(0,rw,0)
         s2 = [bd_width, circulation_w, bd_height]
-        create_geometry("corridor",p2,s2)
+        create_geometry("C1",p2,s2)
       end
     end
 
 
   end
 
-  def create_abs_geometries(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true)
+  def _add_all_abs_to_one()
+    abs=@abstract_geometries
+    if @concrete_geometries.size<1
+      # g=Sketchup.active_model.entities.add_group
+      g=@gp.entities.add_group
+      @concrete_geometries<<g
+    else
+      g=@concrete_geometries[0]
+      # g=Sketchup.active_model.entities.add_group if !g.valid?
+      g=@gp.entities.add_group if !g.valid?
+      @concrete_geometries[0]=g
 
+    end
+    # g.transformation=@gp.transformation
+    ti=@gp.transformation.inverse
+    tt=Geom::Transformation.translation @gp.transformation.origin
+    tm=ti*tt
+    g.entities.clear!
+    # m=Geom::PolygonMesh.new
+    # tr=g.transformation.inverse
+    # for a in abs
+    #   a.mesh(m)
+    # end
+    # g.entities.add_faces_from_mesh(m,0)
+    for a in abs
+      m=a.mesh
+      # m.transform! tt
+      m.transform! tm
+      g.entities.add_faces_from_mesh(m,0)
+    end
   end
 
   def create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
@@ -205,7 +329,51 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       p "nil input found pos=#{position} size=#{size}"
     end
 
-    #p @availables
+    xscale=@gp.transformation.xscale
+    yscale=@gp.transformation.yscale
+    zscale=@gp.transformation.zscale
+
+    # clone useful parameters
+    p=position.clone
+    # print "name:#{key} | pos:#{p} | scales:#{[xscale,yscale,zscale]}\n"
+
+    s=size.clone
+    t=key
+
+    #convert units to meters
+    if meter
+      for i in 0..2
+        p[i]=p[i].m if not p[i].nil?
+      end
+      for i in 0..s.size-1
+        begin
+          s[i] = s[i].m
+        rescue
+          p "Exception i=#{i}, s=#{s} "
+          p $!
+          throw Exception
+        end
+      end
+    end
+
+
+    box=MeshUtil::AttrBox.new
+    # box.position=p
+    box.reflection=flip
+    box.set_pos(p)
+    box.size=s
+    box.rotation=rotation
+    box.color=color
+    box.name=key.to_s
+    @abstract_geometries << box
+    # add_space(key,box)
+  end
+
+  def _create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
+    if position == nil or size == nil
+      p "nil input found pos=#{position} size=#{size}"
+    end
+
     p=position.clone
     s=size.clone
     t=key
@@ -242,6 +410,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       xscale=@gp.transformation.xscale
       yscale=@gp.transformation.yscale
       ArchUtil.scale_3d(comp,[xscale/yscale,yscale/xscale,1])
+
     end
     ArchUtil.scale_3d(comp,flip)
     return comp
@@ -271,7 +440,6 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
     id=ArchUtil.short_id(@gp)
     size=Op_Dimension.get_size(@gp)
     msg="'#{id} #{size}'"
-    p msg
     dlg.set_web_param('title',msg)
 
     # available types

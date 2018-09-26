@@ -21,8 +21,10 @@ module ArchProto
 
     directory=self.get_file_path('')
     ordered_files = []
+    ordered_files << directory + 'arch_tools_observer.rb'
     ordered_files << directory + 'constances.rb'
     ordered_files += Dir.glob(directory + 'arch_util*.rb')
+    ordered_files << directory + 'mesh_util.rb'
     ordered_files << directory + 'html_dialog_wrapper.rb'
     ordered_files << directory + 'observer_manager.rb'
     ordered_files << directory + 'archi.rb'
@@ -30,6 +32,7 @@ module ArchProto
 
     ordered_files += Dir.glob(directory + 'proto*.rb')
     ordered_files += Dir.glob(directory + 'swit*.rb')
+    ordered_files += Dir.glob(directory + 'op_*.rb')
     ordered_files += Dir.glob(directory + 'wd_*.rb')
     ordered_files += Dir.glob(directory + 'bh_*.rb')
 
