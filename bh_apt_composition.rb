@@ -288,86 +288,8 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
         create_geometry("C1",p2,s2)
       end
     end
-
-
   end
 
-  def _add_all_abs_to_one()
-    abs=@abstract_geometries
-    if @concrete_geometries.size<1
-      # g=Sketchup.active_model.entities.add_group
-      g=@gp.entities.add_group
-      @concrete_geometries<<g
-    else
-      g=@concrete_geometries[0]
-      # g=Sketchup.active_model.entities.add_group if !g.valid?
-      g=@gp.entities.add_group if !g.valid?
-      @concrete_geometries[0]=g
-
-    end
-    # g.transformation=@gp.transformation
-    ti=@gp.transformation.inverse
-    tt=Geom::Transformation.translation @gp.transformation.origin
-    tm=ti*tt
-    g.entities.clear!
-    # m=Geom::PolygonMesh.new
-    # tr=g.transformation.inverse
-    # for a in abs
-    #   a.mesh(m)
-    # end
-    # g.entities.add_faces_from_mesh(m,0)
-    for a in abs
-      m=a.mesh
-      # m.transform! tt
-      m.transform! tm
-      g.entities.add_faces_from_mesh(m,0)
-    end
-  end
-
-  def create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
-    if position == nil or size == nil
-      p "nil input found pos=#{position} size=#{size}"
-    end
-
-    xscale=@gp.transformation.xscale
-    yscale=@gp.transformation.yscale
-    zscale=@gp.transformation.zscale
-
-    # clone useful parameters
-    p=position.clone
-    # print "name:#{key} | pos:#{p} | scales:#{[xscale,yscale,zscale]}\n"
-
-    s=size.clone
-    t=key
-
-    #convert units to meters
-    if meter
-      for i in 0..2
-        p[i]=p[i].m if not p[i].nil?
-      end
-      for i in 0..s.size-1
-        begin
-          s[i] = s[i].m
-        rescue
-          p "Exception i=#{i}, s=#{s} "
-          p $!
-          throw Exception
-        end
-      end
-    end
-
-
-    box=MeshUtil::AttrBox.new
-    # box.position=p
-    box.reflection=flip
-    box.set_pos(p)
-    box.size=s
-    box.rotation=rotation
-    box.color=color
-    box.name=key.to_s
-    @abstract_geometries << box
-    # add_space(key,box)
-  end
 
   def _create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
     if position == nil or size == nil

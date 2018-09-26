@@ -56,6 +56,67 @@ module MeshUtil
     end
   end
 
+  class AttrComposit < AttrGeo
+    attr_accessor :meshes
+    def initialize(meshes=nil)
+      @mesh=Geom::PolygonMesh.new
+      @meshs = []
+      add_range(meshes) if meshes.is_a? Array
+    end
+
+    def add_box(pos,size,rot)
+      MeshUtil.box(pos,size,rot,@mesh)
+    end
+
+    def add_polygon(pts)
+      @mesh.add_polygon(pts)
+      # now_pcount=@mesh.count_points
+      # for p in pts
+      #   @mesh.add_point(p)
+      # end
+      #
+      # f=[]
+      # for i in 1..pts.size
+      #   f<<(now_pcount+i)
+      # end
+      # begin
+      #   @mesh.add_polygon(f)
+      # rescue
+      #   p "mesh nowCount=#{now_pcount} afsterCount=#{@mesh.count_points} f=#{f}"
+      #   p $!
+      #   throw Exception
+      # end
+
+    end
+
+    def add(m)
+      @meshes<<m
+      now_pcount=@mesh.count_points
+      @mesh.points+=m.points
+      for f in m.polygons
+        nf=[]
+        for i in f
+          nf<< i + now_pcount
+        end
+        @mesh.add_polygon(nf)
+      end
+    end
+
+    def add_range(ms)
+      for m in ms
+        add m
+      end
+    end
+
+    def size
+      return @meshs.size
+    end
+
+    def mesh
+      return @mesh
+    end
+  end
+
   class AttrExtrusion < AttrGeo
     attr_accessor :base_pts
     attr_accessor :height
