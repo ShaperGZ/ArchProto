@@ -139,9 +139,9 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       s11 =[bd_width,circulation_w,bd_height]
       create_geometry("C4",p11,s11,180)
 
-      p12 = p10 - Geom::Vector3d.new(un_depth+circulation_w,un_depth+circulation_w,0)
+      p12 = p11 - Geom::Vector3d.new(un_depth+circulation_w,un_depth+circulation_w,0)
       s12 = s7
-      create_geometry("O8",p12,s12,0,[-1,-1,1])
+      create_geometry("O8",p12,s12,0,[-1,1,1])
 
     elsif @availables.include? 'U-shape'
       # Straight double loaded

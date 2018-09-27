@@ -59,8 +59,9 @@ module MeshUtil
   class AttrComposit < AttrGeo
     attr_accessor :meshes
     def initialize(meshes=nil)
+      super()
       @mesh=Geom::PolygonMesh.new
-      @meshs = []
+      add(meshes) if meshes.is_a? Geom::PolygonMesh
       add_range(meshes) if meshes.is_a? Array
     end
 
@@ -70,36 +71,20 @@ module MeshUtil
 
     def add_polygon(pts)
       @mesh.add_polygon(pts)
-      # now_pcount=@mesh.count_points
-      # for p in pts
-      #   @mesh.add_point(p)
-      # end
-      #
-      # f=[]
-      # for i in 1..pts.size
-      #   f<<(now_pcount+i)
-      # end
-      # begin
-      #   @mesh.add_polygon(f)
-      # rescue
-      #   p "mesh nowCount=#{now_pcount} afsterCount=#{@mesh.count_points} f=#{f}"
-      #   p $!
-      #   throw Exception
-      # end
-
     end
 
     def add(m)
-      @meshes<<m
-      now_pcount=@mesh.count_points
-      @mesh.points+=m.points
       for f in m.polygons
         nf=[]
         for i in f
-          nf<< i + now_pcount
+          nf<< m.points[i-1]
         end
         @mesh.add_polygon(nf)
       end
+    end
+
+    def clone()
+      return AttrComposit.new(mesh())
     end
 
     def add_range(ms)
@@ -113,7 +98,14 @@ module MeshUtil
     end
 
     def mesh
-      return @mesh
+      out_mesh=MeshUtil.clone_mesh @mesh
+      trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
+      trans_translate=Geom::Transformation.translation(@position)
+      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
+      out_mesh.transform! trans_reflect
+      out_mesh.transform! trans_rotate
+      out_mesh.transform! trans_translate
+      return out_mesh
     end
   end
 
@@ -273,6 +265,18 @@ module MeshUtil
     end
   end
 
+
+  def MeshUtil.clone_mesh(m)
+    out_mesh=Geom::PolygonMesh.new
+    for f in m.polygons
+      nf=[]
+      for i in f
+        nf<< m.points[i-1]
+      end
+      out_mesh.add_polygon(nf)
+    end
+    return out_mesh
+  end
 
   def MeshUtil.add_model(mesh,parent=nil,smooth=0)
     parent=Sketchup.active_model.entities.add_group if parent==nil

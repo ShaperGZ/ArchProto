@@ -115,23 +115,31 @@ module Arch
         @concrete_geometries[0]=g
 
       end
-      # g.transformation=@gp.transformation
-      ti=@gp.transformation.inverse
-      tt=Geom::Transformation.translation @gp.transformation.origin
-      tm=ti*tt
+      gt=@gp.transformation
+      xs=gt.xscale
+      ys=gt.yscale
+      zs=gt.zscale
+      ti = ArchUtil.Transformation_scale_3d([1/xs,1/ys,1/zs])
+      # ti=@gp.transformation.inverse
+      tr=Geom::Transformation.rotation([0,0,0],Geom::Vector3d.new(0,0,1),gt.rotz.degrees)
+      tri=Geom::Transformation.rotation([0,0,0],Geom::Vector3d.new(0,0,1),-gt.rotz.degrees)
+      p "@g.rotz=#{gt.rotz}"
       g.entities.clear!
-      # m=Geom::PolygonMesh.new
-      # tr=g.transformation.inverse
-      # for a in abs
-      #   a.mesh(m)
-      # end
-      # g.entities.add_faces_from_mesh(m,0)
+
+      # Push matrix and load unit matrix
+      # only recreated scale and rotation because the local origin is [0,0,0]
+      g.transformation=Geom::Transformation.new
+      g.transform! tri*ti
+
+      #create geometries
       for a in abs
-        m=a.mesh
-        # m.transform! tt
-        m.transform! tm
+        m=a.mesh()
         g.entities.add_faces_from_mesh(m,0)
       end
+
+      # pop matrix
+      g.transform! tr
+
     end
 
     def create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
