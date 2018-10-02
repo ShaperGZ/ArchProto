@@ -1,15 +1,15 @@
 module MeshUtil
 
   class AttrGeo
-    attr_accessor :position
+    # attr_accessor :position
     attr_accessor :size
-    attr_accessor :rotation
-    attr_accessor :vects
+    # attr_accessor :rotation
+    # attr_accessor :vects
     attr_accessor :name
     attr_accessor :attributes
     attr_accessor :color
     attr_accessor :alignment
-    attr_accessor :reflection
+    # attr_accessor :reflection
     attr_accessor :bounds
 
 
@@ -35,10 +35,60 @@ module MeshUtil
       return self
     end
 
-    def set_rote(rots)
+    def position
+      return @position
+    end
+
+    def position=(pos)
+      if pos.is_a? Array
+        pos=Geom::Point3d.new(pos)
+      end
+      @position=pos
+    end
+
+    def rotation
+      return @rotation
+    end
+    def rotation=(rots)
       @rotation=rots
-      return self
+      _set_vects
       #remember to set the vectors
+    end
+
+    def reflection
+      return @reflection
+    end
+
+    def reflection=(reflect)
+      # make sure reflection is 1 dimension 3 length array
+      # such as [1,1,1]
+      if reflect.is_a? Array and reflect.size==2
+        reflect<<1
+      end
+      @reflection=reflect
+      _set_vects
+    end
+
+    def vects
+      out_vects=[]
+      out_vects<<@vects[0].clone
+      out_vects<<@vects[1].clone
+      out_vects<<@vects[2].clone
+
+      return out_vects
+    end
+
+    def _set_vects()
+      #TODO: vects have reflection
+      xvect=Geom::Vector3d.new(1,0,0)
+      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
+      xvect=trans_rotate * xvect
+      zvect=Geom::Vector3d.new(0,0,1)
+      yvect=zvect.cross xvect
+      xvect.length*=@reflection[0]
+      yvect.length*=@reflection[1]
+
+      @vects=[xvect,yvect,zvect]
     end
 
     def set_alignment(alignment)
@@ -176,6 +226,10 @@ module MeshUtil
       return txt
     end
 
+    def forward()
+      #TODO: calculate forward from rotation and reflection
+    end
+
     def to_extrusion()
       sx=@size[0]
       sy=@size[1]
@@ -193,14 +247,6 @@ module MeshUtil
     end
 
 
-    def set_xvect(vect)
-      xvect=vect
-      zvect=Geom::Vector3d.new(0,0,1)
-      yvect=zvect.cross xvect
-      @vects=[xvect,yvect,zvect]
-      return self
-    end
-
     def mesh(parent=nil)
       if @position.is_a? Array
         pos=Geom::Point3d.new(@position)
@@ -209,10 +255,10 @@ module MeshUtil
       end
       org=pos
 
-      vects = @vects
-      xvect=vects[0]
-      yvect=vects[1]
-      zvect=vects[2]
+      lvects = vects()
+      xvect=lvects[0]
+      yvect=lvects[1]
+      zvect=lvects[2]
       size=@size
 
       xvect.length=size[0]
@@ -254,12 +300,16 @@ module MeshUtil
 
       flip=(@reflection[0]*@reflection[1]*@reflection[2])<0
       trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
+      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
       trans_translate=Geom::Transformation.translation(pos)
-      m=MeshUtil.box(Geom::Point3d.new,@size,@rotation,parent,flip)
+
+      # m=MeshUtil.box(Geom::Point3d.new,@size,@rotation,parent,flip)
+      m=MeshUtil.box(Geom::Point3d.new,@size,0,parent,flip)
       # m=MeshUtil.box(pos,@size,@rotation,parent,flip)
 
       # m.transform! (trans_reflect * trans_translate)
       m.transform! trans_reflect
+      m.transform! trans_rotate
       m.transform! trans_translate
       return m
     end

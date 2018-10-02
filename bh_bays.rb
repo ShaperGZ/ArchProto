@@ -1,13 +1,27 @@
+class Bay
+  attr_accessor :orientation
+  attr_accessor :area
+end
+
 class BH_Bays < Arch::BlockUpdateBehaviour
   def initialize(gp,host)
     #p 'f=initialized constrain face'
+    @units=[]
+    @units_oriented=Hash.new()
     super(gp,host)
   end
 
   def invalidate()
+    t1=Time.now
     composition=@host.get_updator_by_type(BH_Apt_Composition)
     abs_geo=composition.abstract_geometries
     ocupies=[]
+    if @concrete_geometries.size>0
+      g=@concrete_geometries[0]
+      if g.is_a? Sketchup::Entity and g.valid?
+        g.entities.clear!
+      end
+    end
 
     @abstract_geometries=[]
     for g in abs_geo
@@ -17,8 +31,21 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         # @abstract_geometries<<dup_geo_to_comp(g)
       end
     end
-    p "bay counts = #{@abstract_geometries.size}"
-    _add_all_abs_to_one()
+    # p "bay counts = #{@abstract_geometries.size}"
+    expansive_update
+    t2=Time.now
+    p "BH_Bays.invalidate took #{t2-t1} seconds"
+  end
+
+  def expansive_update()
+    t1=Time.now
+    _add_all_abs_to_one
+    t2=Time.now
+    p "BH_Bays.expansive_update took #{t2-t1} seconds"
+  end
+
+  def orient_units()
+
   end
 
   def dup_geo_to_comp(geo)
@@ -43,17 +70,13 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     bd=md
     flip=g.reflection[0] * g.reflection[1] * g.reflection[2]
 
-
-    # /////////////////////////////////////////////////
-    # following is not working, need to add AbsComposit
-    # /////////////////////////////////////////////////
     vx=Geom::Vector3d.new(bw,0,0)
     vy=Geom::Vector3d.new(0,bd,0)
     vz=Geom::Vector3d.new(0,0,bh)
     composit=MeshUtil::AttrComposit.new
     composit.size=g.size
     composit.rotation=g.rotation
-    # composit.reflection=g.reflection
+    composit.reflection=g.reflection
     composit.position=g.position
     for i in 0..countw-1
       for j in 0..counth-1
@@ -67,7 +90,16 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         pts << p + vz
         pts.reverse! if flip <0
 
-        composit.add_polygon(pts)
+        # composit.add_polygon(pts)
+        if j==counth-1
+          top=[]
+          top<<p + vz
+          top<<top[0] + vx
+          top<<top[1] + vy
+          top<<top[2] - vx
+          top.reverse! if flip <0
+          composit.add_polygon(top)
+        end
       end
     end
     return composit

@@ -1,5 +1,5 @@
 module ArchProto
-  def self.open_interaction
+  def self.open_interaction (reset=false)
     dialog=WD_Interact.singleton
     dialog.open
   end
@@ -7,10 +7,12 @@ end
 
 class WD_Interact < ArchProto::HTMLDialogWrapper
   attr_accessor :subject
+  attr_accessor :dlg
+  attr_accessor :state_checkboxes
 
   @@singleton=nil
-  def self.singleton
-    if @@singleton==nil
+  def self.singleton(reset=false)
+    if @@singleton==nil or reset == true
       @@singleton=WD_Interact.create_or_get(WD_Interact.name)
     end
     return @@singleton
@@ -34,11 +36,12 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     @htl_rm=[]
   end
 
-  def open()
+  def open(reset=false)
     return if @visible
     # Definitions.load()
     # @dlg = UI::HtmlDialog.new("AttributeInfo", true, "Information", 739, 641, 150, 300, true)
-    if @dlg == nil
+    p "@dlg==nil#{@dlg == nil} reset=#{reset}"
+    if @dlg == nil or reset==true
       @dlg = UI::HtmlDialog.new({
                                     :scrollable => true,
                                     :resizable => true,
@@ -47,13 +50,22 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
                                     :style => UI::HtmlDialog::STYLE_DIALOG
                                 })
       #file = File.join(__dir__,"/dialogs/dialog_interact.html")
-      file = 'file:///D:/SketchupRuby/Prototype/dialog/dlg_proto.html'
+      file=ArchProto.get_file_path('dialog/dlg_proto.html')
+      p "file=#{file}"
+      # file = 'file:///D:/SketchupRuby/Prototype/dialog/dlg_proto.html'
       @dlg.set_url(file)
       # @dlg.set_file(file)
-      #@dlg.set_on_closed{close()}
+      @dlg.set_on_closed{close()}
     end
 
     @dlg.show
+    @dlg.add_action_callback("checkbox_clicked"){|dialog,params|
+      params=params.split(",")
+      params[1]=params[1]
+      p params
+
+      checkbox_value(*params)
+    }
     # p 'wd.interact adding action callback'
     # @dlg.add_action_callback("updateAttr"){|dialog,params|update_attr(params)}
     # @dlg.add_action_callback("normal_mode"){|dialog,params|normal_mode()}
@@ -74,6 +86,19 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     @visible = false
   end
 
+  # gets the checkbox value if the value is passed
+  # returns the checkbox value if the value is omitted
+  def checkbox_value(id,value=nil)
+    # p "checkbox_value(id=#{id} value=#{value}"
+    @state_checkboxes=Hash.new if @state_checkboxes == nil
+    if !@state_checkboxes.keys.include? id
+      @state_checkboxes[id]=nil
+    end
+    return @state_checkboxes[id] if value==nil
+    @state_checkboxes[id] = value
+    @subjectBB.invalidate()
+  end
+
   def onSelectionBulkChange(selection)
     if selection.size != 1
       return
@@ -90,6 +115,7 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
 
     @subjectGP=entity
     @subjectBB = Proto_Apt.create_or_get(entity, 'Params.csv', false)
+    p "got @subjectBB=#{@subjectBB}"
     # @subjectIT=@subjectBB.get_updator_by_type(BH_Interact)
     # @subjectIT.set_dlg(@dlg)
     # @subjectIT.update_dialog_data()
@@ -97,8 +123,8 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     id=ArchUtil.short_id(@subjectGP)
     size=Op_Dimension.get_size(@subjectGP)
     msg="'#{id} #{size}'"
-    set_web_param('title',msg)
-    fill_dgl_unit_prototypes(false)
+    # set_web_param('title',msg)
+    # fill_dgl_unit_prototypes(false)
     #set_un_prototype()
   end
 
@@ -116,6 +142,11 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     # set_un_prototype()
     # #assign default
     # #
+  end
+
+
+  def execute_script(msg)
+    @dlg.execute_script(msg)
   end
 
   def set_web_param(key,value)

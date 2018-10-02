@@ -102,6 +102,10 @@ module Arch
     def invalidate()
     end
 
+    def expansive_update()
+
+    end
+
     def _add_all_abs_to_one()
       abs=@abstract_geometries
       if @concrete_geometries.size<1
@@ -135,6 +139,7 @@ module Arch
       for a in abs
         m=a.mesh()
         g.entities.add_faces_from_mesh(m,0)
+        # g.entities.fill_from_mesh(m,false,0)
       end
 
       # pop matrix
@@ -242,7 +247,13 @@ module Arch
     end
 
     def invalidate()
+      Sketchup.active_model.start_operation("invalidate",true)
       @updators.each{|u| u.invalidate()} if enableUpdate and @gp.valid?
+      Sketchup.active_model.commit_operation
+    end
+
+    def expansive_update()
+      @updators.each{|u| u.expansive_update()} if enableUpdate and @gp.valid?
     end
 
     # invalidated 是一个长度为三的bool array, 指明那种变化已过期

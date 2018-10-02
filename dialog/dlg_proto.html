@@ -11,6 +11,11 @@
             font-size:10px;
             vertical-align: center;
         }
+        .frozenContents{
+            font-size:10px;
+            vertical-align: center;
+            color: whitesmoke;
+        }
 
     </style>
     <script src="d3.js"></script>
@@ -26,16 +31,16 @@
     <table >
         <tbody>
             <tr>
-                <td><span class="contents"> D </span></td>
-                <td><span class="contents"> L </span></td>
-                <td><span class="contents"> U </span></td>
-                <td><span class="contents"> O </span></td>
+                <td><span class="contents" id="sp_double" > D </span></td>
+                <td><span class="contents" id="sp_L-shape"> L </span></td>
+                <td><span class="contents" id="sp_U-shape"> U </span></td>
+                <td><span class="contents" id="sp_O-shape"> O </span></td>
             </tr>
             <tr>
-                <td><input type="checkbox" id="cb_double" /></td>
-                <td><input type="checkbox" id="cb_L-shape" /></td>
-                <td><input type="checkbox" id="cb_U-shape" /></td>
-                <td><input type="checkbox" id="cb_O-shape" /></td>
+                <td><input type="checkbox" id="cb_double"  onclick="on_checkbox_clicked(this)"/></td>
+                <td><input type="checkbox" id="cb_L-shape" onclick="on_checkbox_clicked(this)"/></td>
+                <td><input type="checkbox" id="cb_U-shape" onclick="on_checkbox_clicked(this)"/></td>
+                <td><input type="checkbox" id="cb_O-shape" onclick="on_checkbox_clicked(this)"/></td>
             </tr>
         </tbody>
     </table>
@@ -62,6 +67,22 @@
 </form>
 <script src="piechart.js"></script>
 <script>
+    function on_checkbox_clicked(obj){
+        id=obj.id;
+        value=obj.checked;
+
+        params=id+","+value;
+        console.log(params)
+        window.location= 'skp:checkbox_clicked@'+params;
+    }
+    function fade_element(key){
+        obj=document.getElementById(key);
+        obj.style.color="lightgrey";
+    }
+    function unfade_element(key){
+        obj=document.getElementById(key);
+        obj.style.color="black";
+    }
     function set_param(key,value){
         obj=document.getElementById(key);
         console.log(obj.type);
@@ -75,7 +96,7 @@
             obj.innerHTML=value;
         }
     }
-
+    fade_element("sp_O-shape")
     set_param('title','My New Title')
 </script>
 </body>

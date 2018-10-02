@@ -1,6 +1,5 @@
 require 'csv'
-
-#UI
+$basepath='g:/SketchupRuby/ArchProto/' if $basepath==nil
 # module Sketchup::ArchProto
 #   # cmd_create_apt=UI::Command.new("CreateApt"){Prototyping.set_tool}
 #   # cmd_create_apt.tooltip = "crt_apt"
@@ -87,24 +86,24 @@ module ArchProto
 
 
   def self.get_file_path(file="/colorPallet.txt")
-    basepath = 'd:/SketchupRuby/Prototype/'
-    profile_path = basepath + file
+    profile_path = $basepath + file
     return profile_path
   end
-
-  def self.get_file_path_bak(file="/colorPallet.txt")
-    basepath = File.dirname(__FILE__)
-    profile_path = basepath + file
-    return profile_path
-  end
-
 
 end
 
+def startArchTest (path=nil)
+  $basepath = path if path!=nil
+  if !$LOAD_PATH.include? $basepath
+    $LOAD_PATH << $basepath
+  end
+  ArchToolsObserver.create
+  Proto_Apt.create_from_selection
+end
 
 ArchProto.reload_profiles
-ArchProto.reload_scripts
-
+ArchProto.reload_scripts if $entry_loaded_once != nil or $entry_loaded_once !=true
+$entry_loaded_once=true
 ArchProto.open_interaction
 
 

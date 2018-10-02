@@ -1,16 +1,23 @@
-load 'd:/SketchupRuby/Prototype/building_block.rb'
+# load 'd:/SketchupRuby/Prototype/building_block.rb'
 
 
 class Proto_Apt < BuildingBlock
 
-  def self.create_or_get(g,param_file=nil,invalidate_created=true)
+  def self.created_objects
+    @@created_objects=Hash.new if @@created_objects == nil
+    return @@created_objects
+  end
+
+  def self.create_or_get(g,param_file=nil,invalidate_created=false)
     self.remove_deleted()
-    if @@created_objects.key?(g.guid)
-      block=@@created_objects[g.guid]
+    if Proto_Apt.created_objects().key?(g.guid)
+      block=Proto_Apt.created_objects[g.guid]
       block.invalidate() if invalidate_created
       return block
     else
+      p "creating a Proto_Apt instance"
       b=Proto_Apt.new(g,param_file)
+      Proto_Apt.created_objects[g.guid]=b
       b.invalidate()
       return b
     end
@@ -30,10 +37,11 @@ class Proto_Apt < BuildingBlock
 
     # TODO: set the default g_composition
     @g_composition=BH_Apt_Composition.new(g,self)
-
+    @g_evacuation=BH_Evacuation.new(g,self)
 
     @updators << BH_Dimension.new(g,self)
     @updators << @g_composition
+    @updators << @g_evacuation
     @updators << BH_Bays.new(g,self)
   end
 

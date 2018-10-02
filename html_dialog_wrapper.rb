@@ -42,7 +42,7 @@ module ArchProto
       # ArchProto::WebDialogWrapper.set(name, self)
       @@created_objects[name] = self
       #obs = Sketchup.active_model.selection.add_observer(WebDialogSelectionObserver.new(self))
-      ObserverManager.Add(Sketchup.active_model,WebDialogSelectionObserver.new(self))
+      ObserverManager.Add(Sketchup.active_model.selection,WebDialogSelectionObserver.new(self))
         #ObserverManger.Add(Sketchup.active_model.selection,obs)
       # do somthing
     end

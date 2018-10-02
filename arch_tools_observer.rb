@@ -37,12 +37,30 @@ class ArchToolsObserver <Sketchup::ToolsObserver
         $timers<<$timer
       else
         if tool_state == 0 and @last_state ==1
-          default_action
-        end
+          Sketchup.active_model.start_operation("end tool",true)
+          for obj in @subjects
+            begin
+              default_action obj
+              tool_end obj
+            rescue
+              p $!.message
+              p $!.backtrace
+            end
+          end
+          Sketchup.active_model.commit_operation
+        end # tool_state == 0
         UI.stop_timer($timer) if $timer!=nil
       end
     end
     @last_state=tool_state
+  end
+
+  def tool_end(obj=nil)
+    return if obj==nil
+    apt=Proto_Apt.created_objects[obj]
+    if apt !=nil
+      apt.expansive_update()
+    end
   end
 
   def default_action(obj=nil)
