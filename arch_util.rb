@@ -49,8 +49,25 @@ module ArchUtil
       g0=u if u != nil
     end
 
-  return g0
-end
+    return g0
+  end
+
+  
+
+  def ArchUtil.point_in_plane_front(point,plane)
+    point = Geom::Point3d.new(point) if point.is_a? Array
+    cp=point.project_to_plane(plane)
+    dist = point.distance_to_plane(plane)
+    return false if dist == 0.0
+    vect=point-cp
+    vect.length=1
+    dist=point.distance_to_plane(plane)
+    if dist>0 and vect==plane[1]
+      return true
+    end
+
+    return false
+  end
 
   def ArchUtil.intersect(g1,g2,container)
     result=g1.entities.intersect_with(

@@ -411,4 +411,88 @@ module MeshUtil
     MeshUtil.add_poly_to_mesh_faces(tpts,mesh)
     return mesh
   end
+  def MeshUtil.split_mesh(plane,mesh,cap=true)
+    left=[]
+    right=[]
+    xedges=[]
+
+    polygons=mesh.polygons
+    pts=mesh.points
+    for polygon in polygons
+      gon_left=[]
+      gon_right=[]
+      xedge=[]
+      reverse=ArchUtil.point_in_plane_front(pts[polygon[0]-1],plane)
+      # p "polygon:#{polygon} reverse:#{reverse} plane:#{plane}-------"
+      for i in 0..polygon.size-1
+        j=i+1
+        j=0 if j>=polygon.size
+        index1=polygon[i]
+        index2=polygon[j]
+        # p ["i=#{i}, j=#{j} index1=#{index1} index2=#{index2}"]
+        p1=pts[index1-1]
+        p2=pts[index2-1]
+        onTop=ArchUtil.point_in_plane_front(p1,plane)
+        # p "i:#{i} ontop=#{onTop} p1:#{p1} p2:#{p2}"
+        if onTop
+          gon_right<<p1
+        else
+          gon_left<<p1
+        end
+        line=[p1,p2]
+        xp=Geom.intersect_line_plane(line,plane)
+        if xp!=nil
+          # p "xp=#{xp}"
+          xedge<<xp
+          gon_right<<xp
+          gon_left<<xp
+        end
+      end
+      left<<gon_left if gon_left.size>=3
+      right<<gon_right if gon_right.size>=3
+
+      xedge.reverse! if reverse
+      xedges<<xedge if xedge.size>=2
+    end
+    cutline=MeshUtil.sort_xedges(xedges)
+
+    if cap
+      left_cap=cutline.clone.reverse!
+      right_cap=cutline.clone
+      left<<left_cap
+      right<<right_cap
+    end
+    return left,right,cutline
+  end
+
+  def MeshUtil.sort_xedges(xedges)
+    #p "=========== sort_xedges ==========="
+    #p "xedges:"
+    xedges.each{|e| p e}
+    p " "
+    sorted=[xedges[0][0]]
+    edge1=xedges[0]
+    if xedges.size<3
+      #print "xedges.size < 3 :#{xedges}"
+      return nil
+    end
+    #p"xedges=#{xedges}"
+    unsorted=xedges[1..xedges.size-1]
+    #p "unsorted=#{unsorted}"
+    for i in 0..xedges.size-1
+      for m in 0..unsorted.size-1
+        edge2=unsorted[m]
+        next if edge1==edge2
+        #p "edge1=#{edge1} edge2=#{edge2}"
+        if edge1[1]==edge2[0]
+          #p"============join!======="
+          sorted<<edge2[0]
+          unsorted.delete(edge2)
+          edge1=edge2
+          break
+        end
+      end
+    end
+    return sorted
+  end
 end
