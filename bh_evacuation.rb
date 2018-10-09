@@ -27,7 +27,7 @@ module Evacuation
           b.attributes['true_position']=b.position.clone
           b.position-= Geom::Vector3d.new(1.5.m,1.5.m,0)
           b.size=[3.m,3.m,3.m]
-
+          b.name='MK_STAIR'
           b.attributes['parent_start']=geo.position
           xvect=geo.vects[0]
           xvect.length=geo.size[0]

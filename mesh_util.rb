@@ -209,6 +209,10 @@ module MeshUtil
       super()
     end
 
+    def area()
+      return @size[0]*@size[1]
+    end
+
     def clone()
       dup=AttrBox.new
       dup.position=@position

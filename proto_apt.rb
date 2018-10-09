@@ -38,17 +38,19 @@ class Proto_Apt < BuildingBlock
     # TODO: set the default g_composition
     @g_composition=BH_Apt_Composition.new(g,self)
     @g_evacuation=BH_Evacuation.new(g,self)
+    @g_area=BH_Apt_Area.new(g,self)
 
     @updators << BH_Dimension.new(g,self)
     @updators << @g_composition
     @updators << @g_evacuation
     @updators << BH_Bays.new(g,self)
+    @updators << @g_area
   end
 
   def set_gen_composition(behavior)
     index=@updators.index(@g_composition)
     @g_composition=behavior
-    @updators[index]=@g_composition;
+    @updators[index]=@g_composition
   end
 
 end
