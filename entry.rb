@@ -1,5 +1,7 @@
 require 'csv'
-$basepath='g:/SketchupRuby/ArchProto/' if $basepath==nil
+# $basepath='g:/SketchupRuby/ArchProto/' if $basepath==nil
+$basepath='d:/SketchupRuby/ArchProto/' if $basepath==nil
+
 # module Sketchup::ArchProto
 #   # cmd_create_apt=UI::Command.new("CreateApt"){Prototyping.set_tool}
 #   # cmd_create_apt.tooltip = "crt_apt"

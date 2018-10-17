@@ -1,0 +1,2 @@
+1 所有dictionary要to_a之后才能放进 attributes
+2 看 Notes_Attributes.xlsx 来维护物体里的数据

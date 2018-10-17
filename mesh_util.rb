@@ -445,6 +445,17 @@ module MeshUtil
         end
         line=[p1,p2]
         xp=Geom.intersect_line_plane(line,plane)
+
+        if xp !=nil
+          ref_len = (p1-p2).length
+          d1 = xp - p1
+          d2 = xp - p2
+          if d1.length > ref_len or d2.length > ref_len
+            xp=nil
+          end
+
+        end
+
         if xp!=nil
           # p "xp=#{xp}"
           xedge<<xp
@@ -465,6 +476,10 @@ module MeshUtil
       right_cap=cutline.clone
       left<<left_cap
       right<<right_cap
+    end
+
+    if left.size==0 or right.size==0
+      cutline=null
     end
     return left,right,cutline
   end

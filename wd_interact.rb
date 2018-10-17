@@ -6,21 +6,23 @@ module ArchProto
 end
 
 class WD_Interact < ArchProto::HTMLDialogWrapper
-  attr_accessor :subject
+  attr_accessor :subjectGP
+  attr_accessor :subjectBB
+  attr_accessor :subjectIT
   attr_accessor :dlg
   attr_accessor :state_checkboxes
 
   @@singleton=nil
   def self.singleton(reset=false)
     if @@singleton==nil or reset == true
-      @@singleton=WD_Interact.create_or_get(WD_Interact.name)
+      @@singleton=WD_Interact.create_or_get(WD_Interact,name)
     end
     return @@singleton
   end
 
-  def self.create_or_get(name)
+  def self.create_or_get(name,reset)
     dialog=ArchProto::HTMLDialogWrapper.get(WD_Interact.name)
-    if dialog == nil
+    if dialog == nil or reset
       name=WD_Interact.name
       dialog=WD_Interact.new(name)
     end
@@ -52,18 +54,15 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       #file = File.join(__dir__,"/dialogs/dialog_interact.html")
       file=ArchProto.get_file_path('dialog/dlg_proto.html')
       p "file=#{file}"
-      # file = 'file:///D:/SketchupRuby/Prototype/dialog/dlg_proto.html'
       @dlg.set_url(file)
-      # @dlg.set_file(file)
-      @dlg.set_on_closed{close()}
     end
 
     @dlg.show
     @dlg.add_action_callback("checkbox_clicked"){|dialog,params|
+      p " [!] checkbox clicked"
       params=params.split(",")
       params[1]=params[1]
       p params
-
       checkbox_value(*params)
     }
     # p 'wd.interact adding action callback'
@@ -72,6 +71,8 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     # @dlg.add_action_callback("unit_mode"){|dialog,params|unit_mode()}
     # @dlg.add_action_callback("update_all"){|dialog,params|update_all(params)}
     # @dlg.add_action_callback("def_reload"){|dialog,params|def_reload(params)}
+    @dlg.set_on_closed{close()}
+
     @visible=true
 
     #assign slection manuals
@@ -96,10 +97,16 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     end
     return @state_checkboxes[id] if value==nil
     @state_checkboxes[id] = value
+    p @state_checkboxes
+    compositions=@state_checkboxes.clone
+    p("composition.class=#{compositions.class} : #{compositions}")
+    gp=@subjectGP
+    gp.set_attribute("OperableStates","composition",compositions.to_a)
     @subjectBB.invalidate()
   end
 
   def onSelectionBulkChange(selection)
+    p "onSelectionBulkChange"
     if selection.size != 1
       return
     end
@@ -120,10 +127,10 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     # @subjectIT.set_dlg(@dlg)
     # @subjectIT.update_dialog_data()
 
-    id=ArchUtil.short_id(@subjectGP)
-    size=Op_Dimension.get_size(@subjectGP)
-    msg="'#{id} #{size}'"
-    # set_web_param('title',msg)
+    # id=ArchUtil.short_id(@subjectGP)
+    # size=Op_Dimension.get_size(@subjectGP)
+    # msg="'#{id} #{size}'"
+    set_web_param(@subjectBB)
     # fill_dgl_unit_prototypes(false)
     #set_un_prototype()
   end
@@ -149,7 +156,10 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     @dlg.execute_script(msg)
   end
 
-  def set_web_param(key,value)
+  def set_web_param(obj)
+    gp=obj.gp
+    key=ArchUtil.short_id(gp)
+    value=Op_Dimension.get_size(gp)
     msg="set_param('#{key}',#{value})"
     # p "send message #{msg}"
     @dlg.execute_script(msg)
