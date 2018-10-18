@@ -39,12 +39,14 @@ class Proto_Apt < BuildingBlock
     @g_composition=BH_Apt_Composition.new(g,self)
     @g_evacuation=BH_Evacuation.new(g,self)
     @g_area=BH_Apt_Area.new(g,self)
+    @g_update_web_scores=BH_Update_Web_Scores.new(g,self)
 
     @updators << BH_Dimension.new(g,self)
     @updators << @g_composition
     @updators << @g_evacuation
     @updators << BH_Bays.new(g,self)
     @updators << @g_area
+    @updators << @g_update_web_scores
   end
 
   def set_gen_composition(behavior)
