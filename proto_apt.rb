@@ -28,6 +28,10 @@ class Proto_Apt < BuildingBlock
       gp = Sketchup.active_model.selection[0]
     end
     proto=Proto_Apt.create_or_get(gp,'Params.csv',true)
+    wd=WD_Interact.singleton
+    wd.subjectGP=gp
+    wd.subjectBB = proto
+    wd.set_web_param(proto)
     return proto
   end
 

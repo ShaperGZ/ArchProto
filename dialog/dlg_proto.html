@@ -75,6 +75,27 @@
         console.log(params)
         window.location= 'skp:checkbox_clicked@'+params;
     }
+    function set_checkboxes(data){
+        //sample data:
+        //'double=>true,L-shape=>false'
+        data=data.split(',')
+        data.forEach(function(d){
+            kv=d.split('=>');
+            k=kv[0];
+            check=false;
+            if (kv[1]=="true") check = true;
+            id='cb_'+k
+            console.log("id="+id)
+            obj=document.getElementById('cb_'+k);
+            if (obj!=null){
+                obj.checked=check;
+            }
+            else{
+                console.log("unable to select with id:"+id);
+            }
+        });
+
+    }
     function fade_element(key){
         obj=document.getElementById(key);
         obj.style.color="lightgrey";

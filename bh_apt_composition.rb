@@ -29,6 +29,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
     @compositions = Hash.new()
 
     checked_compositions_arr=@gp.get_attribute("OperableStates","composition")
+    checked_compositions_arr=[] if checked_compositions_arr == nil
     checked_compositions = Hash.new()
     checked_compositions_arr.each{|i|
       checked_compositions[i[0]]=i[1]

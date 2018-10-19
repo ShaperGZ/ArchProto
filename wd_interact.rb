@@ -158,11 +158,32 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
 
   def set_web_param(obj)
     gp=obj.gp
-    key=ArchUtil.short_id(gp)
-    value=Op_Dimension.get_size(gp)
-    msg="set_param('#{key}',#{value})"
-    # p "send message #{msg}"
-    @dlg.execute_script(msg)
+
+    comps=["double","L-shape","U-shape","O-shape"]
+    checked=gp.get_attribute("OperableStates","composition")
+
+    #checks=Hash.new
+    checks=""
+    comps.each{|k|
+      flag="false"
+      k=k.split('_')[0]
+      checked.each{|c|
+        if c[0].include? k
+          flag="true";
+          break;
+        end
+      } if checked != nil
+      checks += "#{k}=>#{flag},"
+    }
+    msg="set_checkboxes('#{checks}')"
+    p ">>>> #{msg}"
+    execute_script msg
+
+    # key=ArchUtil.short_id(gp)
+    # value=Op_Dimension.get_size(gp)
+    # msg="set_param('#{key}',#{value})"
+    # # p "send message #{msg}"
+    # @dlg.execute_script(msg)
   end
 
   def set_un_prototype()
