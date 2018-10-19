@@ -120,6 +120,7 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     numE=(length/30).ceil
     numE=2 if numE<2
     @efficiency=(30.0-length%30.0)/30.0
+    @gp.set_attribute("PrototypeScores","VerticalEvacuation",@efficiency)
     # p "poly.length=#{length} numE=#{numE} efficiency=#{@efficiency}"
 
     # create abstract geometries

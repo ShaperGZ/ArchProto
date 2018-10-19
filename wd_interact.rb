@@ -209,6 +209,26 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     generator.enable(Generators::Gen_Units,false,level="level2")
   end
 
+
+
+  def update_web_scores(dataArr)
+    # sample source data:
+    # [ ["Efficiency",0.8], ...]
+    # ---------------------------
+    # sample target data:
+    # "Efficiency=>0.8, ..."
+    #
+    txtData=""
+    dataArr.each{|d|
+      k=d[0]
+      v=d[1]
+      txtData+= "#{k}=>#{v},"
+    }
+
+    msg="setScoreValues('#{txtData}')"
+    execute_script msg
+  end
+
   def update_attr(params)
     # p "wd_interact.update_attr #{params}"
     trunks=params.split('|')

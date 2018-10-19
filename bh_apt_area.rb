@@ -36,7 +36,14 @@ class BH_Apt_Area < Arch::BlockUpdateBehaviour
     @area_ttl=@area_occupy+@area_corridor
     numerator=@area_occupy-@area_evac_vert
     @efficency=numerator/@area_ttl
-    @gp.set_attribute("PrototypeScore","efficiency",@efficency)
+
+    fc_base=1500
+    fc_remain=@area_ttl%fc_base
+    @fc_score=fc_remain/fc_base
+
+    @gp.set_attribute("PrototypeScores","FireCompartment",@fc_score)
+    @gp.set_attribute("PrototypeScores","Efficiency",@efficency)
+
     p @efficency
   end
 end

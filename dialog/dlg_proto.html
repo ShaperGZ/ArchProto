@@ -19,14 +19,17 @@
 
     </style>
     <script src="d3.js"></script>
+    <script src="chart_AptScore.js"></script>
+    <script >
+    </script>
 </head>
 <body>
 
+<svg width="120" height="120"></svg>
+<div id="MainChart">
+</div>
 <form>
     <!--customize composition-->
-    <div id="div_1" style="width:10pt; height: 30pt; background-color: red"></div>
-    <div id="div_2" style="width:10pt; height: 30pt; background-color:green"></div>
-
     <span id="title" class="titles" > Composition Customization</span><br>
     <table >
         <tbody>
@@ -46,27 +49,94 @@
     </table>
     <input class="contents" id="test" value="input here"/>
     <div id="viz"></div>
-    <script type="text/javascript">
+    <!--<script type="text/javascript">-->
 
-        var sampleSVG = d3.select("#viz")
-            .append("svg")
-            .attr("width", 100)
-            .attr("height", 100);
+        <!--var sampleSVG = d3.select("#viz")-->
+            <!--.append("svg")-->
+            <!--.attr("width", 60)-->
+            <!--.attr("height", 60);-->
 
-        sampleSVG.append("circle")
-            .style("stroke", "gray")
-            .style("fill", "white")
-            .attr("r", 40)
-            .attr("cx", 50)
-            .attr("cy", 50)
-            .on("mouseover", function(){d3.select(this).style("fill", "aliceblue");})
-            .on("mouseout", function(){d3.select(this).style("fill", "white");});
+        <!--sampleSVG.append("circle")-->
+            <!--.style("stroke", "gray")-->
+            <!--.style("fill", "white")-->
+            <!--.attr("r", 40)-->
+            <!--.attr("cx", 50)-->
+            <!--.attr("cy", 50)-->
+            <!--.on("mouseover", function(){d3.select(this).style("fill", "aliceblue");})-->
+            <!--.on("mouseout", function(){d3.select(this).style("fill", "white");});-->
 
-    </script>
+    <!--</script>-->
 
 </form>
-<script src="piechart.js"></script>
 <script>
+    scoreNames=[
+        "Efficiency",
+        "SouthUnit",
+        "FireCompartment",
+        "VerticalEvacuation",
+        "Undefined",
+        "Undefined"
+    ]
+    scoreData=[
+        {"name":scoreNames[0],"value":0.5, "flag":true},
+        {"name":scoreNames[1],"value":0.5, "flag":true},
+        {"name":scoreNames[2],"value":0.5, "flag":true},
+        {"name":scoreNames[3],"value":0.5, "flag":true},
+        {"name":scoreNames[4],"value":0.75, "flag":true},
+        {"name":scoreNames[5],"value":0.95, "flag":true},
+    ];
+
+    function logData(){
+        txt=""
+        scoreData.forEach(function(d){
+            n=d.name;
+            v=d.value;
+            f=d.flag;
+            txt += n + " , " + v + " , "+ f + "\n";
+        });
+        console.log(txt);
+    };
+    function setScoreValue(key,value,invalidate=true){
+        index=scoreNames.indexOf(key);
+        if(index>=0){
+            if(value >= scoreData[index].value)
+                scoreData[index].flag=true;
+            else
+                scoreData[index].flag=false;
+            scoreData[index].value=value;
+            if (invalidate) invalidateChart();
+            return true;
+        }
+        return false;
+    }
+    function setScoreValues(datastring){
+        // data string sampple:
+        // "efficiency=>0.5,southUnits=>0.6"
+        items=datastring.split(",");
+        items.forEach(function(item){
+            kv=item.split('=>');
+            v=parseFloat(kv[1])
+            setScoreValue(kv[0],v,false);
+        });
+        invalidateChart()
+    }
+    function invalidateChart(){
+        chartMain.invalidate(scoreData);
+    }
+
+    svg=d3.select("body").select("svg");
+    chartMain=new ChartAptScore(svg,scoreData);
+    // chartMain.create();
+
+    console.log("console logging text")
+    function score(){}
+    function update_eff(){
+        console.log("update_eff")
+        if (score.efficiency!=null){
+            obj=document.getElementById("score_text");
+            obj.innerText=score.efficiency;
+        }
+    }
     function on_checkbox_clicked(obj){
         id=obj.id;
         value=obj.checked;
