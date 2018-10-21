@@ -107,14 +107,17 @@ class IDP{
 
         var self=this;
         // add text labels
-        this.g.append("text")
+        this.text=this.g.append("text")
             .attr("transform",function(d){
                 var centroid = self.arc.centroid(d);
                 // console.log("centroid = "+centroid);
                 return "translate("+centroid+")";
             })
-            .attr("dy",".35em")
+            .attr("dx","-5px")
+            .attr("dy","5px")
             .style("text_anchor","middle")
+            .style("font-size","10px")
+            .style("fill","white")
             .text(this.d_label);
 
     };
@@ -125,6 +128,8 @@ class IDP{
             .selectAll("path")
             .attr("d",this.arc)
             .style("fill", this.d_data_color);
+
+        this.text.text(this.d_label);
     };
 
 }
@@ -138,24 +143,28 @@ class ChartAptScore{
         this.width=parseInt(svg.attr("width"));
         this.height=parseInt(svg.attr("height"));
         this.radius = Math.min(this.width,this.height)/2
-        var separator = this.radius * 0.9;
-        var centerR=this.radius * 0.25;
+        var outerRadius = this.radius;
+        var separator = outerRadius * 0.35;
+        var centerR= outerRadius * 0.3;
 
         // main chart
         this.chart_main=new IDP(svg,this.minV,this.maxV,data);
-        this.chart_main.d_label="";
+        this.chart_main.d_label=function(d){
+            var val=Math.round(d.data.value*100)/10
+            return val
+        };
         this.chart_main.radius = separator;
         this.chart_main.d_innerRadius=centerR;
         this.chart_main.d_outerRadius=function(d){
-            var offset =  (separator - centerR) * d.data.value;
-            return centerR + offset;
+            var offset =  (outerRadius - separator) * d.data.value;
+            return separator + offset;
         }
 
         // state chart
         this.chart_state=new IDP(svg,this.minV,this.maxV,data);
         this.chart_state.d_label="";
-        this.chart_state.d_innerRadius=separator;
-        this.chart_state.d_outerRadius=this.radius;
+        this.chart_state.d_innerRadius=centerR;
+        this.chart_state.d_outerRadius=separator;
         this.chart_state.d_data_color=function(d){if(d.data.flag) return "#6DBC2E"; return "#9C2D1B";};
 
         //overallscore chart
