@@ -11,15 +11,22 @@
             font-size:10px;
             vertical-align: center;
         }
+        .changedContents{
+            font-size:10px;
+            vertical-align: center;
+            background: lightblue;
+        }
         .frozenContents{
             font-size:10px;
             vertical-align: center;
             color: whitesmoke;
         }
 
+
     </style>
     <script src="d3.js"></script>
     <script src="chart_AptScore.js"></script>
+    <script src="jsChart.js"></script>
     <script >
     </script>
 </head>
@@ -47,6 +54,7 @@
             </tr>
         </tbody>
     </table>
+    <div id="attribute_table"></div>
     <input class="contents" id="test" value="input here"/>
     <div id="viz"></div>
     <!--<script type="text/javascript">-->
@@ -128,15 +136,6 @@
     chartMain=new ChartAptScore(svg,scoreData);
     // chartMain.create();
 
-    console.log("console logging text")
-    function score(){}
-    function update_eff(){
-        console.log("update_eff")
-        if (score.efficiency!=null){
-            obj=document.getElementById("score_text");
-            obj.innerText=score.efficiency;
-        }
-    }
     function on_checkbox_clicked(obj){
         id=obj.id;
         value=obj.checked;
@@ -187,8 +186,30 @@
             obj.innerHTML=value;
         }
     }
-    fade_element("sp_O-shape")
-    set_param('title','My New Title')
+    // fade_element("sp_O-shape")
+    // set_param('title','My New Title')
+
+    function regenAttributeTable(strdata){
+        // sample data:
+        // wd_width=>3.0;p_apt_serviced=>[1.0,1.0,0.0,1.0]
+        var strs=strdata.split(';')
+        var data=[]
+        strs.forEach(function(s){
+            kv=s.split("=>");
+            data.push({"name":kv[0],"value":kv[1]});
+        });
+
+
+        tableBB.clearRows();
+        tableBB.addRows(data);
+        previousData=data
+    }
+
+    // tabeBBContainer=document.getElementById("attribute_table");
+    // tableBB=new TableSpanInput(tableBBContainer);
+    previousData=null;
+    tableBB=new TableSpanInput(document.getElementById("attribute_table"));
+
 </script>
 </body>
 </html>

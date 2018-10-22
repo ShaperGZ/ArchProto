@@ -38,6 +38,7 @@ class Proto_Apt < BuildingBlock
   def initialize(g,param_file)
     p "start creation ------------------"
     super(g,param_file)
+    hide_nongroup
 
     # TODO: set the default g_composition
     @g_composition=BH_Apt_Composition.new(g,self)
@@ -52,6 +53,15 @@ class Proto_Apt < BuildingBlock
     @updators << @g_area
     @updators << @g_update_web_scores
   end
+
+  def hide_nongroup()
+    @gp.entities.each{|e|
+      if !(e.is_a? Sketchup::Group or e.is_a? Sketchup::ComponentInstance)
+        e.visible=false
+      end
+    }
+  end
+
 
   def set_gen_composition(behavior)
     index=@updators.index(@g_composition)

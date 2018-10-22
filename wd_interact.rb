@@ -40,8 +40,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
 
   def open(reset=false)
     return if @visible
-    # Definitions.load()
-    # @dlg = UI::HtmlDialog.new("AttributeInfo", true, "Information", 739, 641, 150, 300, true)
     p "@dlg==nil#{@dlg == nil} reset=#{reset}"
     if @dlg == nil or reset==true
       @dlg = UI::HtmlDialog.new({
@@ -65,21 +63,9 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       p params
       checkbox_value(*params)
     }
-    # p 'wd.interact adding action callback'
-    # @dlg.add_action_callback("updateAttr"){|dialog,params|update_attr(params)}
-    # @dlg.add_action_callback("normal_mode"){|dialog,params|normal_mode()}
-    # @dlg.add_action_callback("unit_mode"){|dialog,params|unit_mode()}
-    # @dlg.add_action_callback("update_all"){|dialog,params|update_all(params)}
-    # @dlg.add_action_callback("def_reload"){|dialog,params|def_reload(params)}
     @dlg.set_on_closed{close()}
 
     @visible=true
-
-    #assign slection manuals
-    # @dlg.execute_script("document.getElementById('id2').options.add(new Option('#{c}','#{c}'))")
-    # fill_dgl_unit_prototypes()
-
-    # onSelectionBulkChange(Sketchup.active_model.selection)
   end
 
   def close()
@@ -123,34 +109,8 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     @subjectGP=entity
     @subjectBB = Proto_Apt.create_or_get(entity, 'Params.csv', false)
     p "got @subjectBB=#{@subjectBB}"
-    # @subjectIT=@subjectBB.get_updator_by_type(BH_Interact)
-    # @subjectIT.set_dlg(@dlg)
-    # @subjectIT.update_dialog_data()
-
-    # id=ArchUtil.short_id(@subjectGP)
-    # size=Op_Dimension.get_size(@subjectGP)
-    # msg="'#{id} #{size}'"
     set_web_param(@subjectBB)
-    # fill_dgl_unit_prototypes(false)
-    #set_un_prototype()
   end
-
-
-  def fill_dgl_unit_prototypes(fill_html=true)
-    return if @subjectGP == nil
-    # @htl_rm=[]
-    # Definitions.defs.keys.each{|k|
-    #  if k.include?("htl_rm_")
-    #    p "recognizing #{k}"
-    #    @htl_rm<<k
-    #    @dlg.execute_script("document.getElementById('un_prototype').options.add(new Option('#{k}','#{k}'))")
-    #  end
-    # }
-    # set_un_prototype()
-    # #assign default
-    # #
-  end
-
 
   def execute_script(msg)
     @dlg.execute_script(msg)
@@ -159,6 +119,9 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
   def set_web_param(obj)
     gp=obj.gp
 
+    # /////////////////////////
+    # set the check box states
+    # /////////////////////////
     comps=["double","L-shape","U-shape","O-shape"]
     checked=gp.get_attribute("OperableStates","composition")
 
@@ -179,11 +142,30 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     p ">>>> #{msg}"
     execute_script msg
 
-    # key=ArchUtil.short_id(gp)
-    # value=Op_Dimension.get_size(gp)
-    # msg="set_param('#{key}',#{value})"
-    # # p "send message #{msg}"
-    # @dlg.execute_script(msg)
+    # /////////////////////////
+    # update all attributes
+    # /////////////////////////
+    set_web_attribute_table(@subjectGP)
+  end
+
+  def set_web_attribute_table(gp)
+    strDataBB=ArchUtil.attribute_dictionary_to_s(gp,"BuildingBlock")
+    msg="regenAttributeTable('#{strDataBB}')"
+    execute_script msg
+  end
+
+  def set_gp_attributes(strdata)
+    #TODO: for strdata from HTML dialog
+    trunks=strdata.split(';')
+    data={}
+    trunks.each{|i|
+      k,v=i.split("=>")
+      data[k]=v
+    }
+
+    size=[data['bd_width'],data['bd_depth'],data['bd_height']]
+    Op_Dimension.set_bd_size(@subjectGP,size)
+    @subjectBB.invalidate()
   end
 
   def set_un_prototype()
@@ -208,8 +190,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     generator=@subjectBB.get_updator_by_type(BH_Generator)
     generator.enable(Generators::Gen_Units,false,level="level2")
   end
-
-
 
   def update_web_scores(dataArr)
     # sample source data:
@@ -297,4 +277,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       return result
     end
   end
+
+
 end
