@@ -5,9 +5,11 @@
     <title>Prototype</title>
     <style>
         .titles{
+            font-family:"Segoe UI";
             font-size: 12px;
         }
         .contents{
+            font-family:"Segoe UI";
             font-size:10px;
             vertical-align: center;
         }
@@ -21,20 +23,66 @@
             vertical-align: center;
             color: whitesmoke;
         }
+        /*Chrome*/
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+            input[type='range'] {
+                overflow: hidden;
+                width: 80px;
+                -webkit-appearance: none;
+                background-color: #aaaaaa;
+            }
 
+            input[type='range']::-webkit-slider-runnable-track {
+                height: 10px;
+                -webkit-appearance: none;
+                color: #FFB14B;
+                margin-top: -1px;
+            }
+
+            input[type='range']::-webkit-slider-thumb {
+                width: 10px;
+                -webkit-appearance: none;
+                height: 10px;
+                cursor: ew-resize;
+                background: #434343;
+                box-shadow: -80px 0 0 80px #FFB14B;
+            }
+
+        }
+        /** FF*/
+        input[type="range"]::-moz-range-progress {
+            background-color: #FFB14B;
+        }
+        input[type="range"]::-moz-range-track {
+            background-color: #aaaaaa;
+        }
+        /* IE*/
+        input[type="range"]::-ms-fill-lower {
+            background-color: #FFB14B;
+        }
+        input[type="range"]::-ms-fill-upper {
+            background-color: #aaaaaa;
+        }
 
     </style>
     <script src="d3.js"></script>
     <script src="chart_AptScore.js"></script>
     <script src="jsChart.js"></script>
-    <script >
-    </script>
 </head>
 <body>
-
-<svg width="120" height="120"></svg>
-<div id="MainChart">
-</div>
+<table>
+    <tb>
+        <tr>
+            <td>
+                <svg width="120" height="120"></svg>
+            </td>
+            <td>
+                <table id="score_ratio_sliders">
+                </table>
+            </td>
+        </tr>
+    </tb>
+</table>
 <form>
     <!--customize composition-->
     <span id="title" class="titles" > Composition Customization</span><br>
@@ -88,13 +136,17 @@
         "Undefined"
     ]
     scoreData=[
-        {"name":scoreNames[0],"value":0.5, "flag":true},
-        {"name":scoreNames[1],"value":0.5, "flag":true},
-        {"name":scoreNames[2],"value":0.5, "flag":true},
-        {"name":scoreNames[3],"value":0.5, "flag":true},
-        {"name":scoreNames[4],"value":0.75, "flag":true},
-        {"name":scoreNames[5],"value":0.95, "flag":true},
+        {"name":scoreNames[0],"value":0.5, "flag":true, "weight":1.6},
+        {"name":scoreNames[1],"value":0.5, "flag":true, "weight":0.9},
+        {"name":scoreNames[2],"value":0.5, "flag":true, "weight":1},
+        {"name":scoreNames[3],"value":0.5, "flag":true, "weight":0.8},
+        {"name":scoreNames[4],"value":0.75, "flag":true, "weight":0.4},
+        {"name":scoreNames[5],"value":0.95, "flag":true, "weight":0.3},
     ];
+
+    var colorRatio=d3.scale.linear()
+        .domain([0.1,1,1.9])
+        .range(["#9C4C32","#FFE49B","#5187CB"]);
 
     function logData(){
         txt=""
@@ -207,6 +259,63 @@
         previousData=data
     }
 
+    function gen_score_ratio_sliders(){
+        var container=document.getElementById("score_ratio_sliders")
+        var tb=document.createElement("tb");
+        container.appendChild(tb);
+        scoreData.forEach(function(d,i){
+            var name=d.name
+            var weight=d.weight;
+            var tr=document.createElement("tr");
+            tb.appendChild(tr)
+
+            var span=document.createElement("span")
+            span.className="contents"
+            span.innerHTML=name;
+
+            var input=document.createElement("input");
+            input.type="text";
+            input.className="contents"
+            input.value=d.weight;
+            input.style.background=colorRatio(d.weight);
+            input.size=1;
+            // input.min=0.1;
+            // input.max=1.9;
+            input.step=0.1;
+            input.onkeydown=function(key){
+                console.log(key.keyCode);
+                var val= parseFloat(input.value)
+                if (key.keyCode==38){
+                    //up
+                    val+=0.1;
+                }
+                else if(key.keyCode==40){
+                    //down
+                    val-=0.1;
+                }
+                else if(key.keyCode==27){
+                    //ESC
+                    val=1;
+                }
+                input.value=val;
+                input.style.background=colorRatio(val);
+                // console.log("sliding val:"+input.value);
+                scoreData[i].weight=val;
+                invalidateChart();
+            }
+            // input.onchange=function(e){
+            //     console.log("sliding val:"+input.value);
+            // }
+
+            var td_span=document.createElement("td")
+            var td_input=document.createElement("td")
+            td_span.appendChild(span)
+            td_input.appendChild(input)
+            tr.appendChild(td_span)
+            tr.appendChild(td_input)
+        });
+    }
+
     function set_gp_attributes_on_value_entry(name,value){
         // when "enter" is pressed, record ALL values on the table
         // and send them to skp
@@ -235,6 +344,8 @@
     tableBB=new TableSpanInput(document.getElementById("attribute_table"));
     tableBB.onValueChange=set_gp_attributes_on_value_entry;
 
+
+    gen_score_ratio_sliders()
 </script>
 </body>
 </html>

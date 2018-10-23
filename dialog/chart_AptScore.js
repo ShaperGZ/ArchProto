@@ -6,10 +6,10 @@ var colorLinear=d3.scale.linear()
     .range(["#A63B34","#FFE49B","#5187CB"]);
 
 mydata=[
-    {"name":12, "value":0.4, "flag":true},
-    {"name":22, "value":0.85, "flag":false},
-    {"name":32, "value":0.6, "flag":true},
-    {"name":42, "value":0.9, "flag":true},
+    {"name":12, "value":0.4, "flag":true, "weight":1},
+    {"name":22, "value":0.85, "flag":false, "weight":1},
+    {"name":32, "value":0.6, "flag":true, "weight":1},
+    {"name":42, "value":0.9, "flag":true, "weight":1},
 ]
 
 class IDP{
@@ -45,7 +45,7 @@ class IDP{
 
         this.data=data;
         this.d_val=function(d){return d.value;};
-        this.d_pie_val=function(d){return 1;};
+        this.d_pie_val=function(d){return d.weight;};
         this.d_name=function(d){return d.name;};
         this.d_label=function(d){return d.data.name;};
         this.d_outerRadius=function(d){
@@ -108,9 +108,13 @@ class IDP{
         var self=this;
         // add text labels
         this.text=this.g.append("text")
-            .attr("transform",function(d){
+            .attr("transform",function(d,i){
                 var centroid = self.arc.centroid(d);
-                // console.log("centroid = "+centroid);
+                if(isNaN(centroid[0])){
+                    console.log('found Nan at i='+i+' d='+d.value );
+                    return "translate(0,0)";
+
+                }
                 return "translate("+centroid+")";
             })
             .attr("dx","-5px")
@@ -123,13 +127,16 @@ class IDP{
     };
 
     invalidate(data){
-        this.g
-            .data(this.pie(data))
-            .selectAll("path")
-            .attr("d",this.arc)
-            .style("fill", this.d_data_color);
-
-        this.text.text(this.d_label);
+        this.graphics.remove();
+        this.data=data;
+        this.create();
+        // this.g
+        //     .data(this.pie(data))
+        //     .selectAll("path")
+        //     .attr("d",this.arc)
+        //     .style("fill", this.d_data_color);
+        //
+        // this.text.text(this.d_label);
     };
 
 }
@@ -139,6 +146,7 @@ class ChartAptScore{
         this.minV=0;
         this.maxV=1;
         this.data=data;
+        this.totalScore=0;
 
         this.width=parseInt(svg.attr("width"));
         this.height=parseInt(svg.attr("height"));
@@ -173,7 +181,7 @@ class ChartAptScore{
         this.chart_overall=new IDP(svg,this.minV,this.maxV,[score]);
         this.chart_overall.d_innerRadius=0;
         this.chart_overall.d_outerRadius=function(d){
-            console.log(d.data);
+            // console.log(d.data);
             return d.data;
         }
 
@@ -181,6 +189,36 @@ class ChartAptScore{
         this.chart_main.create();
         this.chart_state.create();
         this.chart_overall.create();
+
+        //create total score text
+        this.calTotalScore(data);
+        var offsetx=(this.width/2)-12;
+        var offsety=(this.height/2+8);
+        this.totalScoreText=svg.append("text")
+            .attr("transform","translate("+offsetx+","+offsety+")")
+            .style("font-size","18px")
+            .style("font-family","Segoe UI black")
+            .style("fill","gray")
+            .text(this.totalScore);
+
+    }
+
+    calTotalScore(data){
+        var totalWeight = 0
+        this.totalScore=0
+        self=this;
+        data.forEach(function (d) {
+            totalWeight += d.weight;
+        })
+
+        data.forEach(function (d) {
+            self.totalScore+=d.value*(d.weight/totalWeight);
+        })
+        
+        this.totalScore*=100;
+        this.totalScore=Math.round(this.totalScore)
+        this.totalScore/=10;
+
     }
 
     invalidate(data){
@@ -188,6 +226,8 @@ class ChartAptScore{
         this.chart_state.invalidate(data);
         var score=this.overall_score(data);
         this.chart_overall.invalidate([score]);
+        this.calTotalScore(data);
+        this.totalScoreText.text(this.totalScore);
     }
 
     overall_score(data){
