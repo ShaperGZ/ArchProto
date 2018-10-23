@@ -486,25 +486,17 @@ module MeshUtil
 
   def MeshUtil.sort_xedges(xedges)
     #p "=========== sort_xedges ==========="
-    #p "xedges:"
-    xedges.each{|e| p e}
-    p " "
     sorted=[xedges[0][0]]
     edge1=xedges[0]
     if xedges.size<3
-      #print "xedges.size < 3 :#{xedges}"
       return nil
     end
-    #p"xedges=#{xedges}"
     unsorted=xedges[1..xedges.size-1]
-    #p "unsorted=#{unsorted}"
     for i in 0..xedges.size-1
       for m in 0..unsorted.size-1
         edge2=unsorted[m]
         next if edge1==edge2
-        #p "edge1=#{edge1} edge2=#{edge2}"
         if edge1[1]==edge2[0]
-          #p"============join!======="
           sorted<<edge2[0]
           unsorted.delete(edge2)
           edge1=edge2

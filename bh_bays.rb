@@ -28,6 +28,8 @@ class BH_Bays < Arch::BlockUpdateBehaviour
       if g.name[0]=='O'
         ocupies<<g
         @abstract_geometries<<gen_bays(g)
+        @abstract_geometries<<gen_flr_cuts(g)
+
         # @abstract_geometries<<dup_geo_to_comp(g)
       end
     end
@@ -103,6 +105,25 @@ class BH_Bays < Arch::BlockUpdateBehaviour
       end
     end
     return composit
+  end
+
+  # temporary gen flr cuts to show floors
+  def gen_flr_cuts(g)
+    cuts=MeshUtil::AttrComposit.new
+    # cuts.rotation=g.rotation
+    # cuts.reflection=g.reflection
+    # cuts.position=g.position
+    height=g.size[2]
+    counts=height/3.m
+    for i in 0..counts-1
+      z=i*3.m
+      pln=[[0,0,z],[0,0,-1]]
+      # p "g.mesh is a #{g.mesh.class}"
+      l,r,c=MeshUtil.split_mesh(pln,g.mesh)
+      cuts.add_polygon(c)
+    end
+    return cuts
+
   end
 
 end

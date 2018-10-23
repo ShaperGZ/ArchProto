@@ -45,8 +45,8 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       @dlg = UI::HtmlDialog.new({
                                     :scrollable => true,
                                     :resizable => true,
-                                    :min_width => 150,
-                                    :min_height => 300,
+                                    :min_width => 300,
+                                    :min_height => 800,
                                     :style => UI::HtmlDialog::STYLE_DIALOG
                                 })
       #file = File.join(__dir__,"/dialogs/dialog_interact.html")
@@ -62,6 +62,40 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       params[1]=params[1]
       p params
       checkbox_value(*params)
+    }
+    @dlg.add_action_callback("set_gp_attributes"){|dialog,param|
+      wd=WD_Interact.singleton
+      gp=wd.subjectGP
+      bb=wd.subjectBB
+
+      params=param.split(";")
+      params.each{|p|
+        k,v=p.split('=>')
+        p "k:#{k}=v:#{v}"
+        # the value is a string, you have to convert it to float
+        # or array of floats accordingly
+        if v.include? ','
+          v.gsub('"','')
+          v.gsub('[','')
+          v.gsub(']','')
+          items=v.split(',')
+          arrV=[]
+          items.each{|i|
+            arrV<< i.to_f
+          }
+          v=arrV
+        else
+          v=v.to_f
+        end
+        gp.set_attribute("BuildingBlock",k,v)
+      }
+      sizex=gp.get_attribute("BuildingBlock","bd_width")
+      sizey=gp.get_attribute("BuildingBlock","bd_depth")
+      sizez=gp.get_attribute("BuildingBlock","bd_height")
+      size=[sizex,sizey,sizez]
+      Op_Dimension.set_bd_size(gp,size)
+      bb.invalidate
+
     }
     @dlg.set_on_closed{close()}
 
@@ -228,37 +262,37 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     BH_Interact.set_bd_size(gp,size)
   end
 
-  def update_all(params)
-    # some of the params are string params while most others are numeric
-    str_params={"un_prototype"=>[]}
-    p "update all attr from wd message= #{params}"
-    gp=@subjectGP
-    trunks=params.split(',')
-    trunks.each{|pair|
-      pair_items=pair.split(':')
-      key=pair_items[0]
-      val=pair_items[1]
-
-      if str_params.keys.include? key
-        gp.set_attribute("BuildingBlock",key,val)
-      else
-        gp.set_attribute("BuildingBlock",key,_convert_num_param(val))
-      end
-    }
-
-    w=gp.get_attribute("BuildingBlock","bd_width")
-    d=gp.get_attribute("BuildingBlock","bd_depth")
-    h=gp.get_attribute("BuildingBlock","bd_height")
-    size=[w,d,h]
-    update=BH_Interact.set_bd_size(gp,size)
-
-    bd=@subjectBB
-    bd.invalidate()
-    # if not update
-    #   bd=BuildingBlock.created_objects[gp]
-    #   bd.invalidate(true)
-    # end
-  end
+  # def update_all(params)
+  #   # some of the params are string params while most others are numeric
+  #   str_params={"un_prototype"=>[]}
+  #   p "update all attr from wd message= #{params}"
+  #   gp=@subjectGP
+  #   trunks=params.split(',')
+  #   trunks.each{|pair|
+  #     pair_items=pair.split(':')
+  #     key=pair_items[0]
+  #     val=pair_items[1]
+  #
+  #     if str_params.keys.include? key
+  #       gp.set_attribute("BuildingBlock",key,val)
+  #     else
+  #       gp.set_attribute("BuildingBlock",key,_convert_num_param(val))
+  #     end
+  #   }
+  #
+  #   w=gp.get_attribute("BuildingBlock","bd_width")
+  #   d=gp.get_attribute("BuildingBlock","bd_depth")
+  #   h=gp.get_attribute("BuildingBlock","bd_height")
+  #   size=[w,d,h]
+  #   update=BH_Interact.set_bd_size(gp,size)
+  #
+  #   bd=@subjectBB
+  #   bd.invalidate()
+  #   # if not update
+  #   #   bd=BuildingBlock.created_objects[gp]
+  #   #   bd.invalidate(true)
+  #   # end
+  # end
 
 
   def def_reload(param)

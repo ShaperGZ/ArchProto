@@ -19,7 +19,7 @@ class TableSpanInput{
     }
 
     addRow(rowObj,rowIndex){
-        console.log("add row d:"+rowObj.name+","+rowObj.value);
+        // console.log("add row d:"+rowObj.name+","+rowObj.value);
         var d=rowObj;
         var name=d.name;
         var value=d.value
@@ -35,7 +35,7 @@ class TableSpanInput{
         var className=this.classContent
         if(previousData!=null){
             var compare=previousData[rowIndex].value;
-            console.log("comparing "+compare+" vs "+value)
+            // console.log("comparing "+compare+" vs "+value)
             if (compare!=value){
                 className="changedContents"
             }
@@ -75,7 +75,7 @@ class TableSpanInput{
     clearRows(){
         var count=this.tb.childElementCount;
         for (var i=0;i<count;i++){
-            console.log(i);
+            // console.log(i);
             this.tb.removeChild(this.tb.childNodes[0]);
         }
     }
