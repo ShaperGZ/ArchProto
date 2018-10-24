@@ -99,7 +99,7 @@ class IDP{
             .enter().append("g")
             .attr("class","arc")
 
-        this.g.append("path")
+        this.paths=this.g.append("path")
             .attr("d",this.arc)
             .style("fill", this.d_data_color)
             .style("stroke","white")

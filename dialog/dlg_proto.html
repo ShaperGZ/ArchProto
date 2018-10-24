@@ -3,68 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Prototype</title>
-    <style>
-        .titles{
-            font-family:"Segoe UI";
-            font-size: 12px;
-        }
-        .contents{
-            font-family:"Segoe UI";
-            font-size:10px;
-            vertical-align: center;
-        }
-        .changedContents{
-            font-size:10px;
-            vertical-align: center;
-            background: lightblue;
-        }
-        .frozenContents{
-            font-size:10px;
-            vertical-align: center;
-            color: whitesmoke;
-        }
-        /*Chrome*/
-        @media screen and (-webkit-min-device-pixel-ratio:0) {
-            input[type='range'] {
-                overflow: hidden;
-                width: 80px;
-                -webkit-appearance: none;
-                background-color: #aaaaaa;
-            }
-
-            input[type='range']::-webkit-slider-runnable-track {
-                height: 10px;
-                -webkit-appearance: none;
-                color: #FFB14B;
-                margin-top: -1px;
-            }
-
-            input[type='range']::-webkit-slider-thumb {
-                width: 10px;
-                -webkit-appearance: none;
-                height: 10px;
-                cursor: ew-resize;
-                background: #434343;
-                box-shadow: -80px 0 0 80px #FFB14B;
-            }
-
-        }
-        /** FF*/
-        input[type="range"]::-moz-range-progress {
-            background-color: #FFB14B;
-        }
-        input[type="range"]::-moz-range-track {
-            background-color: #aaaaaa;
-        }
-        /* IE*/
-        input[type="range"]::-ms-fill-lower {
-            background-color: #FFB14B;
-        }
-        input[type="range"]::-ms-fill-upper {
-            background-color: #aaaaaa;
-        }
-
-    </style>
+    <link rel="stylesheet" type="text/css"href="ArchProto.css">
     <script src="d3.js"></script>
     <script src="chart_AptScore.js"></script>
     <script src="jsChart.js"></script>
@@ -89,17 +28,39 @@
     <table >
         <tbody>
             <tr>
-                <td><span class="contents" id="sp_double" > D </span></td>
-                <td><span class="contents" id="sp_L-shape"> L </span></td>
-                <td><span class="contents" id="sp_U-shape"> U </span></td>
-                <td><span class="contents" id="sp_O-shape"> O </span></td>
+                <!--check boxes-->
+                <th>
+                    <table>
+                    <tb>
+                        <tr>
+                            <td><span class="contents" id="sp_double" > D </span></td>
+                            <td><span class="contents" id="sp_L-shape"> L </span></td>
+                            <td><span class="contents" id="sp_U-shape"> U </span></td>
+                            <td><span class="contents" id="sp_O-shape"> O </span></td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" id="cb_double"  onclick="on_checkbox_clicked(this)"/></td>
+                            <td><input type="checkbox" id="cb_L-shape" onclick="on_checkbox_clicked(this)"/></td>
+                            <td><input type="checkbox" id="cb_U-shape" onclick="on_checkbox_clicked(this)"/></td>
+                            <td><input type="checkbox" id="cb_O-shape" onclick="on_checkbox_clicked(this)"/></td>
+                        </tr>
+                    </tb>
+                    </table>
+                </th>
+                <!--view modes-->
+                <th>
+                    <table>
+                        <tb>
+                            <tr>
+                                <td><button class="contents"> Norm </button></td>
+                                <td><button class="contents"> Ornt </button></td>
+                                <td><button class="contents"> Unit </button></td>
+                            </tr>
+                        </tb>
+                    </table>
+                </th>
             </tr>
-            <tr>
-                <td><input type="checkbox" id="cb_double"  onclick="on_checkbox_clicked(this)"/></td>
-                <td><input type="checkbox" id="cb_L-shape" onclick="on_checkbox_clicked(this)"/></td>
-                <td><input type="checkbox" id="cb_U-shape" onclick="on_checkbox_clicked(this)"/></td>
-                <td><input type="checkbox" id="cb_O-shape" onclick="on_checkbox_clicked(this)"/></td>
-            </tr>
+
         </tbody>
     </table>
     <div style="overflow-y: scroll; width:260px; height:500px;">
@@ -147,6 +108,8 @@
     var colorRatio=d3.scale.linear()
         .domain([0.1,1,1.9])
         .range(["#9C4C32","#FFE49B","#5187CB"]);
+
+
 
     function logData(){
         txt=""
