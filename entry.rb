@@ -103,6 +103,12 @@ def startArchTest (path=nil)
   Proto_Apt.create_from_selection
 end
 
+def _get_attr(table,key)
+  g=Sketchup.active_model.selection[0]
+  a=g.get_attribute(table,key)
+  return a
+end
+
 ArchProto.reload_profiles
 ArchProto.reload_scripts if $entry_loaded_once != nil or $entry_loaded_once !=true
 $entry_loaded_once=true

@@ -12,9 +12,12 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
   attr_accessor :dlg
   attr_accessor :state_checkboxes
 
-  @@singleton=nil
   def self.singleton(reset=false)
-    if @@singleton==nil or reset == true
+    begin
+      if @@singleton==nil or reset == true
+        @@singleton=WD_Interact.create_or_get(WD_Interact,name)
+      end
+    rescue
       @@singleton=WD_Interact.create_or_get(WD_Interact,name)
     end
     return @@singleton
@@ -39,8 +42,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
   end
 
   def open(reset=false)
-    return if @visible
-    p "@dlg==nil#{@dlg == nil} reset=#{reset}"
     if @dlg == nil or reset==true
       @dlg = UI::HtmlDialog.new({
                                     :scrollable => true,
@@ -53,58 +54,88 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       file=ArchProto.get_file_path('dialog/dlg_proto.html')
       p "file=#{file}"
       @dlg.set_url(file)
-    end
+      @dlg.show
+      @dlg.add_action_callback("set_gp_attributes"){|dialog,param|
+        p 'execute callback: set_gp_attributes'
+        wd=WD_Interact.singleton
+        gp=wd.subjectGP
+        bb=wd.subjectBB
 
-    @dlg.show
-    @dlg.add_action_callback("checkbox_clicked"){|dialog,params|
-      p " [!] checkbox clicked"
-      params=params.split(",")
-      params[1]=params[1]
-      p params
-      checkbox_value(*params)
-    }
-    @dlg.add_action_callback("set_gp_attributes"){|dialog,param|
-      wd=WD_Interact.singleton
-      gp=wd.subjectGP
-      bb=wd.subjectBB
-
-      params=param.split(";")
-      params.each{|p|
-        k,v=p.split('=>')
-        p "k:#{k}=v:#{v}"
-        # the value is a string, you have to convert it to float
-        # or array of floats accordingly
-        if v.include? ','
-          v.gsub('"','')
-          v.gsub('[','')
-          v.gsub(']','')
-          items=v.split(',')
-          arrV=[]
-          items.each{|i|
-            arrV<< i.to_f
-          }
-          v=arrV
-        else
-          v=v.to_f
-        end
-        gp.set_attribute("BuildingBlock",k,v)
+        table="BuildingBlock"
+        update_table_from_string_params(table,param)
       }
-      sizex=gp.get_attribute("BuildingBlock","bd_width")
-      sizey=gp.get_attribute("BuildingBlock","bd_depth")
-      sizez=gp.get_attribute("BuildingBlock","bd_height")
-      size=[sizex,sizey,sizez]
-      Op_Dimension.set_bd_size(gp,size)
-      bb.invalidate
+      @dlg.add_action_callback("set_check_boxes"){|dialog,params|
+        p 'execute callback: set_check_boxes'
+        p "set_check_boxes params:#{params}"
+        wd=WD_Interact.singleton
+        gp=wd.subjectGP
+        vals=[]
+        params=params.split(',')
+        for p in params
+          k,v=p.split('=>')
+          if v=='true' or v=='True'
+            v=true
+          else
+            v=false
+          end
+          vals<<[k,v]
+        end
+        p vals
+        gp.set_attribute("OperableStates","composition",vals)
+        invalidate_model
+      }
+      @dlg.add_action_callback("update_model_table"){|dialog,params|
+        p 'execute callback: update_model_table'
+        key,vals=params.split('|')
+        update_table_from_string_params(key,vals)
+      }
+      @dlg.add_action_callback("log"){|dialog,text|
+        p '-[LOG FROM UI]-:'+text
+      }
+      @dlg.add_action_callback("set_view_mode_norm"){|dialog,params| set_view_mode_normal}
+      @dlg.add_action_callback("set_view_mode_ornt"){|dialog,params| set_view_mode_orientation}
+      @dlg.add_action_callback("set_view_mode_unit"){|dialog,params| set_view_mode_unit}
 
-    }
-    @dlg.set_on_closed{close()}
 
-    @visible=true
+    elsif !@dlg.visible?
+      @dlg.show
+    end
   end
 
   def close()
+    p "dialog close action"
     @dlg == nil
     @visible = false
+  end
+
+  def formatValue(v)
+    if v.include? ','
+      v.gsub('"','')
+      v.gsub('[','')
+      v.gsub(']','')
+      items=v.split(',')
+      arrV=[]
+      items.each{|i|
+        arrV<< i.to_f
+      }
+      v=arrV
+    else
+      v=v.to_f
+    end
+    return v
+  end
+
+  def invalidate_model()
+    wd=WD_Interact.singleton
+    gp=wd.subjectGP
+    bb=wd.subjectBB
+
+    sizex=gp.get_attribute("BuildingBlock","bd_width")
+    sizey=gp.get_attribute("BuildingBlock","bd_depth")
+    sizez=gp.get_attribute("BuildingBlock","bd_height")
+    size=[sizex,sizey,sizez]
+    Op_Dimension.set_bd_size(gp,size)
+    bb.invalidate()
   end
 
   # gets the checkbox value if the value is passed
@@ -122,7 +153,7 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     p("composition.class=#{compositions.class} : #{compositions}")
     gp=@subjectGP
     gp.set_attribute("OperableStates","composition",compositions.to_a)
-    @subjectBB.invalidate()
+    # @subjectBB.invalidate()
   end
 
   def onSelectionBulkChange(selection)
@@ -150,11 +181,37 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     @dlg.execute_script(msg)
   end
 
+  def update_table_from_string_params(table,params)
+    p "wd_interact.update_table_from_string_aparams"
+    wd=WD_Interact.singleton
+    gp=wd.subjectGP
+
+    vals=params.split(';')
+    vals.each{|p|
+      k,v=p.split('=>')
+      v=formatValue(v)
+      gp.set_attribute(table,k,v)
+    }
+    invalidate_model
+  end
+
+  def set_view_mode_normal()
+
+  end
+
+  def set_view_mode_orientation()
+
+  end
+
+  def set_view_mode_unit()
+
+  end
+
   def set_web_param(obj)
     gp=obj.gp
 
     # /////////////////////////
-    # set the check box states
+    # set the UI check box states
     # /////////////////////////
     comps=["double","L-shape","U-shape","O-shape"]
     checked=gp.get_attribute("OperableStates","composition")
@@ -165,7 +222,7 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       flag="false"
       k=k.split('_')[0]
       checked.each{|c|
-        if c[0].include? k
+        if c[0].include? k and c[1]
           flag="true";
           break;
         end
@@ -177,9 +234,15 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     execute_script msg
 
     # /////////////////////////
-    # update all attributes
+    # update BuildingBox Table
     # /////////////////////////
     set_web_attribute_table(@subjectGP)
+
+    # ////////////////////////
+    # update score
+    # ///////////////////////
+    scores=gp.attribute_dictionary("PrototypeScores").to_a
+    update_web_scores(scores)
   end
 
   def set_web_attribute_table(gp)
@@ -233,14 +296,27 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     # "Efficiency=>0.8, ..."
     #
     txtData=""
+    txtDataDscr=""
     dataArr.each{|d|
       k=d[0]
-      v=d[1]
+      v=d[1][0]
+      s=d[1][1]
       txtData+= "#{k}=>#{v},"
+      txtDataDscr+="#{k}=>#{s},"
     }
 
     msg="setScoreValues('#{txtData}')"
+    p msg
+
     execute_script msg
+
+    msg="setScoreDescriptions('#{txtDataDscr}')"
+    execute_script msg
+    p msg
+
+    #set score descriptions
+
+
   end
 
   def update_attr(params)
@@ -261,38 +337,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     size=[w,d,h]
     BH_Interact.set_bd_size(gp,size)
   end
-
-  # def update_all(params)
-  #   # some of the params are string params while most others are numeric
-  #   str_params={"un_prototype"=>[]}
-  #   p "update all attr from wd message= #{params}"
-  #   gp=@subjectGP
-  #   trunks=params.split(',')
-  #   trunks.each{|pair|
-  #     pair_items=pair.split(':')
-  #     key=pair_items[0]
-  #     val=pair_items[1]
-  #
-  #     if str_params.keys.include? key
-  #       gp.set_attribute("BuildingBlock",key,val)
-  #     else
-  #       gp.set_attribute("BuildingBlock",key,_convert_num_param(val))
-  #     end
-  #   }
-  #
-  #   w=gp.get_attribute("BuildingBlock","bd_width")
-  #   d=gp.get_attribute("BuildingBlock","bd_depth")
-  #   h=gp.get_attribute("BuildingBlock","bd_height")
-  #   size=[w,d,h]
-  #   update=BH_Interact.set_bd_size(gp,size)
-  #
-  #   bd=@subjectBB
-  #   bd.invalidate()
-  #   # if not update
-  #   #   bd=BuildingBlock.created_objects[gp]
-  #   #   bd.invalidate(true)
-  #   # end
-  # end
 
 
   def def_reload(param)

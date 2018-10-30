@@ -178,17 +178,17 @@ class ChartAptScore{
         //overallscore chart
         var score=this.overall_score(data)
 
-        this.chart_overall=new IDP(svg,this.minV,this.maxV,[score]);
-        this.chart_overall.d_innerRadius=0;
-        this.chart_overall.d_outerRadius=function(d){
-            // console.log(d.data);
-            return d.data;
-        }
+        // this.chart_overall=new IDP(svg,this.minV,this.maxV,[score]);
+        // this.chart_overall.d_innerRadius=0;
+        // this.chart_overall.d_outerRadius=function(d){
+        //     // console.log(d.data);
+        //     return d.data;
+        // }
 
         //create
         this.chart_main.create();
         this.chart_state.create();
-        this.chart_overall.create();
+        //this.chart_overall.create();
 
         //create total score text
         this.calTotalScore(data);
@@ -225,7 +225,7 @@ class ChartAptScore{
         this.chart_main.invalidate(data);
         this.chart_state.invalidate(data);
         var score=this.overall_score(data);
-        this.chart_overall.invalidate([score]);
+        // this.chart_overall.invalidate([score]);
         this.calTotalScore(data);
         this.totalScoreText.text(this.totalScore);
     }

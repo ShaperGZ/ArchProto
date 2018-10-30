@@ -39,7 +39,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       key='cb_'+comp
       state=checked_compositions[key]
       # state=WD_Interact.singleton().checkbox_value(key)
-      if @availables.include? comp and state=="true"
+      if @availables.include? comp and state
         flag=true
       else
         flag=false
