@@ -1,12 +1,45 @@
-class Bay
-  attr_accessor :orientation
+class Unit
   attr_accessor :area
+  attr_accessor :attrGeo
+  attr_accessor :cluster
+end
+
+class UnitCluster
+  attr_accessor :south_factor
+  attr_accessor :west_factor
+  attr_accessor :parentAttrGeo
+  attr_accessor :units
+
+  def size
+    if units.is_a? Array
+      return units.size
+    end
+    return 0
+  end
+
+  def cal_orientation(container)
+    r=parentAttrGeo.rotation
+    if parentAttrGeo.reflection[1]==-1
+      r+=180
+      r=360-r if r>180
+    end
+
+    p "cluster.r=#{r}"
+    r+=container.transformation.rotz
+    sr = r
+    wr = r + 90
+    wr=360-wr if wr>180
+    @south_factor=sr.abs/180.0
+    @west_factor=wr.abs/180.0
+    p "    --- r=#{r} sr.abs=#{sr.abs} south_factor=#{@south_factor} west_factor=#{@west_factor}"
+  end
 end
 
 class BH_Bays < Arch::BlockUpdateBehaviour
+  attr_accessor :unitClusters
   def initialize(gp,host)
     #p 'f=initialized constrain face'
-    @units=[]
+    @unitClusters=[]
     @units_oriented=Hash.new()
     super(gp,host)
   end
@@ -16,6 +49,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     composition=@host.get_updator_by_type(BH_Apt_Composition)
     abs_geo=composition.abstract_geometries
     ocupies=[]
+    @unitClusters=[]
     if @concrete_geometries.size>0
       g=@concrete_geometries[0]
       if g.is_a? Sketchup::Entity and g.valid?
@@ -27,7 +61,8 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     for g in abs_geo
       if g.name[0]=='O'
         ocupies<<g
-        @abstract_geometries<<gen_bays(g)
+        bay=gen_bays(g)
+        @abstract_geometries<<bay
         @abstract_geometries<<gen_flr_cuts(g)
 
         # @abstract_geometries<<dup_geo_to_comp(g)
@@ -60,6 +95,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     mw=g.size[0]
     md=g.size[1]
     mh=g.size[2]
+
     # org=g.position
     # org=Geom::Point3d.new(org.x,org.y,org.z)
     org=Geom::Point3d.new
@@ -71,6 +107,15 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     # p "bw:#{bw.to_m} bh:#{bh.to_m}"
     bd=md
     flip=g.reflection[0] * g.reflection[1] * g.reflection[2]
+
+    cluster=UnitCluster.new()
+    cluster.parentAttrGeo=g
+    cluster.cal_orientation(@gp)
+    cluster.units=[]
+
+    r=g.rotation
+    r+=@gp.transformation.rotz
+    p "cluster rot:#{r}"
 
     vx=Geom::Vector3d.new(bw,0,0)
     vy=Geom::Vector3d.new(0,bd,0)
@@ -85,6 +130,15 @@ class BH_Bays < Arch::BlockUpdateBehaviour
       for j in 0..counth-1
         p = org+ Geom::Vector3d.new(i*bw,0,j*bh)
         s = [bw,bd,bh]
+
+        # attr geo for unit
+        unit=MeshUtil::AttrBox.new
+        unit.size=s.clone
+        unit.position=[p[0],p[1],p[2]]
+        unit.rotation=g.rotation
+        unit.reflection=g.reflection
+        cluster.units<<unit
+
         # composit.add_box(p,s,0)
         pts=[]
         pts << p
@@ -105,6 +159,9 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         end
       end
     end
+
+    @unitClusters<<cluster
+
     return composit
   end
 

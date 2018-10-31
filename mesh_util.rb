@@ -46,8 +46,12 @@ module MeshUtil
       @position=pos
     end
 
-    def rotation
-      return @rotation
+    def rotation(parent=nil)
+      rot=@rotation
+      if parent!=nil
+        rot+=parent.rotation
+      end
+      return rot
     end
     def rotation=(rots)
       @rotation=rots
@@ -69,6 +73,7 @@ module MeshUtil
       _set_vects
     end
 
+
     def vects
       out_vects=[]
       out_vects<<@vects[0].clone
@@ -76,6 +81,12 @@ module MeshUtil
       out_vects<<@vects[2].clone
 
       return out_vects
+    end
+
+    def forward()
+      vect=@vects[1].clone
+      vect.length*=@reflection[1]
+      return vect
     end
 
     def _set_vects()
