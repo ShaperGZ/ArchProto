@@ -78,6 +78,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     composit=MeshUtil::AttrComposit.new
     composit.size=g.size
     composit.rotation=g.rotation
+    p "g.rotation=#{g.rotation}"
     composit.reflection=g.reflection
     composit.position=g.position
     for i in 0..countw-1
