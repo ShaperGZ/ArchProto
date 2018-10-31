@@ -1,3 +1,4 @@
+
 module ArchProto
   class HTMLDialogWrapper
     # 这个静态变量管理所有创建过的窗口
@@ -41,9 +42,13 @@ module ArchProto
       # dangerous recursion
       # ArchProto::WebDialogWrapper.set(name, self)
       @@created_objects[name] = self
-      #obs = Sketchup.active_model.selection.add_observer(WebDialogSelectionObserver.new(self))
-      ObserverManager.Add(Sketchup.active_model.selection,WebDialogSelectionObserver.new(self))
-        #ObserverManger.Add(Sketchup.active_model.selection,obs)
+      if $SELECTION_OBSERVER_SINGLE != nil
+        flag=Sketchup.active_model.selection.remove_observer($SELECTION_OBSERVER_SINGLE)
+      end
+      p "remove existing selection observer:#{flag}"
+      $SELECTION_OBSERVER_SINGLE = WebDialogSelectionObserver.new(self)
+      Sketchup.active_model.selection.add_observer( $SELECTION_OBSERVER_SINGLE )
+      # ObserverManager.Add(Sketchup.active_model.selection,WebDialogSelectionObserver.new(self))
       # do somthing
     end
 
@@ -53,12 +58,10 @@ module ArchProto
     @visible=false
     def toggle()
       @visible = !@visible
-      #do somthing
     end
 
     # 继承时无需写super,因为需要按需判断和设置@visible状态
     def open()
-      #override
       @visible=true
     end
 

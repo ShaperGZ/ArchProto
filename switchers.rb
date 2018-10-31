@@ -14,7 +14,7 @@ class SW_Composition < Switchers
     p_un_width=gp.get_attribute("BuildingBlock","p_un_width")
     p_un_depth=gp.get_attribute("BuildingBlock","p_un_depth")
     crd_width = gp.get_attribute("BuildingBlock","crd_width")
-    infinity=100000
+    infinity=10000000
 
 
     availables=[]

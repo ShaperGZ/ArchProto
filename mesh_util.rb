@@ -445,6 +445,17 @@ module MeshUtil
         end
         line=[p1,p2]
         xp=Geom.intersect_line_plane(line,plane)
+
+        if xp !=nil
+          ref_len = (p1-p2).length
+          d1 = xp - p1
+          d2 = xp - p2
+          if d1.length > ref_len or d2.length > ref_len
+            xp=nil
+          end
+
+        end
+
         if xp!=nil
           # p "xp=#{xp}"
           xedge<<xp
@@ -466,30 +477,26 @@ module MeshUtil
       left<<left_cap
       right<<right_cap
     end
+
+    if left.size==0 or right.size==0
+      cutline=null
+    end
     return left,right,cutline
   end
 
   def MeshUtil.sort_xedges(xedges)
     #p "=========== sort_xedges ==========="
-    #p "xedges:"
-    xedges.each{|e| p e}
-    p " "
     sorted=[xedges[0][0]]
     edge1=xedges[0]
     if xedges.size<3
-      #print "xedges.size < 3 :#{xedges}"
       return nil
     end
-    #p"xedges=#{xedges}"
     unsorted=xedges[1..xedges.size-1]
-    #p "unsorted=#{unsorted}"
     for i in 0..xedges.size-1
       for m in 0..unsorted.size-1
         edge2=unsorted[m]
         next if edge1==edge2
-        #p "edge1=#{edge1} edge2=#{edge2}"
         if edge1[1]==edge2[0]
-          #p"============join!======="
           sorted<<edge2[0]
           unsorted.delete(edge2)
           edge1=edge2
