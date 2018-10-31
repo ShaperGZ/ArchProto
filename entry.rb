@@ -22,7 +22,8 @@ module ArchProto
 
     directory=self.get_file_path('')
     ordered_files = []
-    ordered_files << directory + 'arch_tools_observer.rb'
+    ordered_files << directory + 'geometry_monitor.rb'
+    # ordered_files << directory + 'arch_tools_observer.rb'
     ordered_files << directory + 'constances.rb'
     ordered_files += Dir.glob(directory + 'arch_util*.rb')
     ordered_files << directory + 'mesh_util.rb'
@@ -99,7 +100,8 @@ def startArchTest (path=nil)
   if !$LOAD_PATH.include? $basepath
     $LOAD_PATH << $basepath
   end
-  ArchToolsObserver.create
+  # ArchToolsObserver.create
+  Geometry_Monitor.reset_timer
   Proto_Apt.create_from_selection
 end
 
