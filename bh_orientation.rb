@@ -20,12 +20,12 @@ class BH_Orientation < Arch::BlockUpdateBehaviour
       # orientation scores
       score=possible_min+sf-(wf/2)
       total_scores += score * cluster.size
-      p "cluster orientation score=#{score} size=#{cluster.size} sf:#{sf} wf:#{wf}"
+      # p "cluster orientation score=#{score} size=#{cluster.size} sf:#{sf} wf:#{wf}"
     end
 
     score=total_scores/total_units
     orn_dscr="--"
-    p "orientation score=#{score}, ttlS:#{total_scores}, ttlU:#{total_units}"
+    # p "orientation score=#{score}, ttlS:#{total_scores}, ttlU:#{total_units}"
     @gp.set_attribute("PrototypeScores","SouthUnit",[score,orn_dscr])
   end
 end

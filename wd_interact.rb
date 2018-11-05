@@ -1,7 +1,7 @@
 module ArchProto
   def self.open_interaction (reset=false)
     dialog=WD_Interact.singleton
-    dialog.open
+    dialog.open reset
   end
 end
 
@@ -306,13 +306,11 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     }
 
     msg="setScoreValues('#{txtData}')"
-    p msg
 
     execute_script msg
 
     msg="setScoreDescriptions('#{txtDataDscr}')"
     execute_script msg
-    p msg
 
     #set score descriptions
 

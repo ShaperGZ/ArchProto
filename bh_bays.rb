@@ -10,9 +10,13 @@ class UnitCluster
   attr_accessor :parentAttrGeo
   attr_accessor :units
 
+  def initialize
+    @units=[]
+  end
+
   def size
-    if units.is_a? Array
-      return units.size
+    if @units.is_a? Array
+      return @units.size
     end
     return 0
   end
@@ -76,7 +80,8 @@ class BH_Bays < Arch::BlockUpdateBehaviour
 
   def expansive_update()
     t1=Time.now
-    _add_all_abs_to_one
+    # _add_all_abs_to_one
+    _refresh_concrete_geometries
     t2=Time.now
     p "BH_Bays.expansive_update took #{t2-t1} seconds"
   end
@@ -128,6 +133,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     composit.position=g.position
     for i in 0..countw-1
       for j in 0..counth-1
+        # this p is orthogontal, transformation will be applied to the master geometry
         p = org+ Geom::Vector3d.new(i*bw,0,j*bh)
         s = [bw,bd,bh]
 
