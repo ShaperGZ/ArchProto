@@ -1,3 +1,4 @@
+require 'securerandom'
 module MeshUtil
 
   class AttrGeo
@@ -11,9 +12,11 @@ module MeshUtil
     attr_accessor :alignment
     # attr_accessor :reflection
     attr_accessor :bounds
+    attr_accessor :guid
 
 
     def initialize()
+      @guid=SecureRandom.uuid
       @position=[0,0,0]
       @size=[1,1,1]
       @rotation=0
