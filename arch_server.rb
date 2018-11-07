@@ -43,7 +43,14 @@ class Encriptor
         # 'ABS_BOX|a23f56hd123|0,0,0|10,10,5|30'
 
         size=_get_abs_geo_size(box).to_s[1..-2]
-        pos=box.position.to_s[1..-2]
+
+        boxpos=box.position
+        # the position has to be converted to meters first
+        pos=[0,0,0]
+        for i in 0..2
+            pos[i]=boxpos[i].to_m
+        end
+        pos=pos.to_s[1..-2]
         size=size.gsub('m','')
         pos=pos.gsub('m','')
         msg="ABS_BOX|#{box.guid}|#{pos}|#{size}|#{box.rotation}"
@@ -108,6 +115,12 @@ class ArchServer
     def ArchServer.reset()
         ArchServer.close()
         ArchServer.create()
+    end
+    def ArchServer.valid?()
+        return false if $archserver==nil
+        return false if $archserver.tcpserver==nil or $archserver.client==nil
+        return false if $archserver.tcpserver.closed? or $archserver.client.closed?
+        return true
     end
 end
 
