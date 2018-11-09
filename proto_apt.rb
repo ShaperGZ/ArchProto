@@ -52,9 +52,9 @@ class Proto_Apt < BuildingBlock
     @updators << BH_Bays.new(g,self)
     @updators << BH_Orientation.new(g,self)
     @updators << @g_area
-    @updators << BH_Representations.new(g,self)
+    #@updators << BH_Representations.new(g,self)
     @updators << @g_update_web_scores
-  # end
+  end
 
   def hide_nongroup(g)
     g.entities.each{|e|
