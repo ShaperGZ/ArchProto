@@ -24,12 +24,22 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
   def invalidate()
     comps=["double","L-shape","U-shape","O-shape"]
+    # 要用switche因为switcher通过大小判断可以有的composition
     @availables = @switcher.get(@gp)
-    @compositions=Hash.new()
+    @compositions = Hash.new()
+
+    checked_compositions_arr=@gp.get_attribute("OperableStates","composition")
+    checked_compositions_arr=[] if checked_compositions_arr == nil
+    checked_compositions = Hash.new()
+    checked_compositions_arr.each{|i|
+      checked_compositions[i[0]]=i[1]
+    }
+
     comps.each{|comp|
       key='cb_'+comp
-      state=WD_Interact.singleton().checkbox_value(key)
-      if @availables.include? comp and state=="true"
+      state=checked_compositions[key]
+      # state=WD_Interact.singleton().checkbox_value(key)
+      if @availables.include? comp and state
         flag=true
       else
         flag=false
@@ -38,8 +48,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
     }
     # p "@compositions=#{@compositions}"
 
-    @gp.set_attribute("ProtoApt","available_compositions",@availables)
-
+    @gp.set_attribute("ProtoApt","available_compositions", @availables.to_a)
     @abstract_geometries=[]
 
     t1=Time.now
@@ -58,9 +67,6 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
   end
 
-  def check_composition(checks)
-    @gp.set_attribute("ProtoApt","checked_compositions",checks)
-  end
 
   def gen_composition
     # clear_generated

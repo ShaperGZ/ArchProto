@@ -1,5 +1,7 @@
 require 'csv'
-$basepath='g:/SketchupRuby/ArchProto/' if $basepath==nil
+# $basepath='g:/SketchupRuby/ArchProto/' if $basepath==nil
+$basepath='d:/SketchupRuby/ArchProto/' if $basepath==nil
+
 # module Sketchup::ArchProto
 #   # cmd_create_apt=UI::Command.new("CreateApt"){Prototyping.set_tool}
 #   # cmd_create_apt.tooltip = "crt_apt"
@@ -20,7 +22,8 @@ module ArchProto
 
     directory=self.get_file_path('')
     ordered_files = []
-    ordered_files << directory + 'arch_tools_observer.rb'
+    ordered_files << directory + 'geometry_monitor.rb'
+    # ordered_files << directory + 'arch_tools_observer.rb'
     ordered_files << directory + 'constances.rb'
     ordered_files += Dir.glob(directory + 'arch_util*.rb')
     ordered_files << directory + 'mesh_util.rb'
@@ -97,14 +100,38 @@ def startArchTest (path=nil)
   if !$LOAD_PATH.include? $basepath
     $LOAD_PATH << $basepath
   end
-  ArchToolsObserver.create
+  # ArchToolsObserver.create
+  Geometry_Monitor.reset_timer
   Proto_Apt.create_from_selection
+end
+
+def _get_attr(table,key)
+  g=Sketchup.active_model.selection[0]
+  a=g.get_attribute(table,key)
+  return a
+end
+def _get_bb()
+  g=Sketchup.active_model.selection[0]
+  bb=Proto_Apt.created_objects[g]
+  return bb
+end
+def _get_updator(classname)
+  bb=_get_bb
+  ud=bb.get_updator_by_type(classname)
+  return ud
+end
+
+def _reload()
+  WD_Interact.singleton.dlg.close
+  load 'entry.rb'
+  g=Sketchup.active_model.selection[0]
+  startArchTest
 end
 
 ArchProto.reload_profiles
 ArchProto.reload_scripts if $entry_loaded_once != nil or $entry_loaded_once !=true
 $entry_loaded_once=true
-ArchProto.open_interaction
+ArchProto.open_interaction true
 
 
 

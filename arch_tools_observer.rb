@@ -19,8 +19,18 @@ class ArchToolsObserver <Sketchup::ToolsObserver
   end
 
   def onToolStateChanged(tools, tool_name, tool_id, tool_state)
-    # puts "onToolStateChanged: #{tool_name}:#{tool_state}"
-    if tool_name=="ScaleTool"
+    
+    puts "onToolStateChanged: #{tool_name}:#{tool_state}"
+    rotz=Sketchup.active_model.selection[0].transformation.rotz
+    $note = Sketchup.active_model.add_note("",0.05,0.05) if !$note or !$note.valid?
+    $note.text="rot:#{rotz}"
+
+    listen=[
+        "ScaleTool",
+        "RotateTool"
+    ]
+
+    if listen.include?(tool_name)
       if tool_state == 1
         @subjects = Sketchup.active_model.selection.to_a if @last_state ==0
         $timer=UI.start_timer(0.1,true){

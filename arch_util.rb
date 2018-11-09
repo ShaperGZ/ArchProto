@@ -4,6 +4,19 @@ $genName="SCRIPTGENERATEDOBJECTS"
 
 module ArchUtil
 
+  def ArchUtil.attribute_dictionary_to_s(gp,key)
+    dict=gp.attribute_dictionary(key)
+    txt=""
+    if dict!=nil
+      arrdict=dict.to_a
+      arrdict.each{|i|
+        txt+=i[0]+"=>"+i[1].to_s+";";
+      }
+      return txt[0..-2];
+    end
+    return nil
+  end
+
   def ArchUtil.short_id(gp)
     id=gp.guid
     id=id[0..3]+id[-3..-1]
