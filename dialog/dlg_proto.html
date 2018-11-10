@@ -5,6 +5,7 @@
     <title>Prototype</title>
     <link rel="stylesheet" type="text/css"href="ArchProto.css">
     <script src="d3.js"></script>
+
     <script src="chart_AptScore.js"></script>
     <script src="jsChart.js"></script>
 </head>
@@ -56,6 +57,7 @@
 
         </tbody>
     </table>
+    <div id="threejs_container"></div>
     <div style="overflow-y: scroll; width:260px; height:500px;">
         <div id="attribute_table"></div>
     </div>
@@ -423,5 +425,10 @@
     gen_score_ratio_sliders()
     gen_view_mode_buttons()
 </script>
+<script src="threejs/three.js"></script>
+<!--<script src="threejs/controls/DragControls.js"></script>-->
+<script src="threejs/controls/TrackballControls.js"></script>
+<script src="threejs/controls/OrbitControls.js"></script>
+<script src="threejsViewer.js"></script>
 </body>
 </html>
