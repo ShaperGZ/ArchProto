@@ -288,6 +288,55 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     generator.enable(Generators::Gen_Units,false,level="level2")
   end
 
+
+  def _gl_add_box_message_param(absgeo,color)
+    # sample message:
+    # add_box(pos,size,rot,color)
+    # add_box([1,1,0],[1,-1,1],0,[1,0.75,0])
+    pos = []
+    size=absgeo.size
+    for i in 0..2
+      pos[i]=absgeo.position[i].to_m
+      size[i]=size[i].to_m * absgeo.reflection[i]
+    end
+    rot=absgeo.rotation
+
+    #turn to string
+    pos=pos.to_s[1..-2]
+    size=size.to_s[1..-2]
+    color=[1,1,1] if color==nil
+    color=color.to_s[1..-2]
+
+    param="[#{pos}],[#{size}],#{rot},[#{color}]"
+    return param
+  end
+  def gl_add_box(absgeo,color=nil)
+    param=_gl_add_box_message_param(absgeo,color)
+    msg="add_box(#{param})"
+    execute_script(msg)
+  end
+  def gl_add_boxes(absgeos,color=nil)
+    param=""
+    color=[1,1,1] if color==nil
+    for g in absgeos
+      param+="[#{_gl_add_box_message_param(g,color)}],"
+    end
+    param=param[0..-1]
+    p param
+    msg="add_boxes([#{param}])"
+    execute_script(msg)
+  end
+
+  def gl_enable_update(flag)
+    msg="enable_update(#{flag.to_s})"
+    execute_script(msg)
+  end
+
+  def gl_clear_all()
+    msg="clear_scene()"
+    execute_script(msg)
+  end
+
   def update_web_scores(dataArr)
     # sample source data:
     # [ ["Efficiency",0.8], ...]

@@ -10,6 +10,7 @@ var controls
 var geometries=[]
 var object3ds=[]
 var invalidated=false
+var enableUpdate=true
 
 function init(){
     var geometries=[]
@@ -27,8 +28,9 @@ function init(){
     controls.dynamicDampingFactor = 0.3;
 
 
-    camera.position.z=5
+    camera.position.set(52,-6,76)
     camera.lookAt(0,0,0)
+    camera.far=100000
 
     renderer.setSize(canvasW,canvasH,false);
     renderer.shadowMap.enabled = true;
@@ -108,7 +110,20 @@ function sky_ground_setup(){
     // scene.add( sky );
 }
 
-
+function add_boxes(params){
+    var ttl=params.length
+    for (var i =0;i<ttl;i++){
+        param=params[i];
+        pos=param[0];
+        size=param[1];
+        rot=param[2];
+        color=param[3];
+        add_box(pos,size,rot,color)
+    }
+}
+function enable_update(flag=true){
+    enableUpdate=flag;
+}
 
 function add_box(pos=[0,0,0],size=[1,1,1],rot=0,color=[1,1,1]){
     sx=Math.abs(size[0])
@@ -119,17 +134,27 @@ function add_box(pos=[0,0,0],size=[1,1,1],rot=0,color=[1,1,1]){
     py=pos[1]+size[1]/2;
     pz=pos[2]+size[2]/2;
     geo.pos=[px,py,pz];
-    geo.rot=rot;
+    geo.rot=rot / (180/Math.PI);
     geo.color=color;
     geometries.push(geo)
     invalidated=true;
+    return geo;
 }
 
 function add_box_4(){
-    add_box([1,1,0],[1,1,1])
-    add_box([-1,1,0],[-1,1,1.5])
-    add_box([-1,-1,0],[-1,-1,2])
-    add_box([1,-1,0],[1,-1,2.5])
+    // add_box([1,1,0],[1,1,1])
+    // add_box([-1,1,0],[-1,1,1.5])
+    // add_box([-1,-1,0],[-1,-1,2])
+    // add_box([1,-1,0],[1,-1,2.5])
+
+    boxes=[
+        [[1,1,0],[1,1,1],0,[1,1,1]],
+        [[-1,1,0],[-1,1,0.75],0,[1,1,1]],
+        [[-1,-1,0],[-1,-1,0.5],0,[1,1,1]],
+        [[1,-1,0],[1,-1,0.3],0,[1,1,1]],
+    ]
+
+    add_boxes(boxes)
 }
 
 // function add_box(pos=[0,0,0],size=[1,1,1],rot=0){
@@ -167,7 +192,7 @@ function clear_scene(){
 
 function refreshGeometries(){
 
-    if(invalidated==false) return;
+    if(invalidated==false || enableUpdate==false) return;
     console.log("invalidating");
     var diff =object3ds.length - geometries.length;
 
