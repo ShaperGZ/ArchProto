@@ -110,6 +110,27 @@ function sky_ground_setup(){
     // scene.add( sky );
 }
 
+function add_boxes_grouped(params,transform){
+    var group=new THREE.Object3D()
+
+    // sample transform
+    // transform = [ pos    , size    , rot ]
+    // transform = [[0,0,0] , [1,1,1] , 15  ]
+    t_pos=transform[0]
+    t_scale=transform[1]
+    t_rot=transform[2]
+
+    group.position.set(t_pos[0],t_pos[1],t_pos[2]);
+    group.scale.set(t_scale[0],t_scale[1],t_scale[2])
+    scene.add(group)
+
+
+
+
+
+
+}
+
 function add_boxes(params){
     var ttl=params.length
     for (var i =0;i<ttl;i++){
@@ -121,6 +142,8 @@ function add_boxes(params){
         add_box(pos,size,rot,color)
     }
 }
+
+
 function enable_update(flag=true){
     enableUpdate=flag;
 }

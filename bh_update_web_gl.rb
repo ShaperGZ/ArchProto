@@ -48,7 +48,7 @@ class BH_Update_WebGL < Arch::BlockUpdateBehaviour
         for i in 0..1
           size[i]-=0.5
         end
-        rot=unit.rotation+cluster.parentAttrGeo.rotation
+        rot=unit.rotation
 
         param<<[pos,size,rot,color1]
       end
@@ -65,6 +65,13 @@ class BH_Update_WebGL < Arch::BlockUpdateBehaviour
     end
     return v
   end
+  def vector_scale3d(v1,v2)
+    v=[0,0,0]
+    for i in 0..2
+      v[i]=v1[i]*v2[i]
+    end
+    return v
+  end
   def vector_to_m(v,reflect=[1,1,1])
     outVect=[1,1,1]
     for i in 0..2
@@ -72,4 +79,13 @@ class BH_Update_WebGL < Arch::BlockUpdateBehaviour
     end
     return outVect
   end
+  def reverse_scale(v1)
+    v=[1,1,1]
+    for i in 0..2
+      v[i]=1/v1[i]
+    end
+    return v;
+  end
+
+
 end
