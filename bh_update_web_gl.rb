@@ -39,18 +39,37 @@ class BH_Update_WebGL < Arch::BlockUpdateBehaviour
     boxes=[]
     param=[]
     color1=[1,1,1]
-    for cluster in clusters
+    for cluster in clusters# create a matrix to rotate around g.position
+      pivot=cluster.parentAttrGeo.position
+      pivot = Geom::Point3d.new(pivot[0],pivot[1],pivot[2])
+      angle=cluster.parentAttrGeo.rotation
+      tr=Geom::Transformation.rotation(pivot,Geom::Vector3d.new(0,0,1),angle.degrees)
+      pivot = Geom::Vector3d.new(pivot[0],pivot[1],pivot[2])
+
+      # get unit color base on orientation
+      # # south and west factor
+      sf=1-cluster.south_factor
+      wf=1-cluster.west_factor
+
+      # orientation scores
+      possible_min=0.25
+      score=possible_min+sf-(wf/2)
+      color=ArchUtil.colorScale([[1,0.3,0.2],[1,1,0.2],[0.3,1,0.2]],[0,1],score)
+
       units=cluster.units
       for unit in units
-        pos=vector_add unit.position,cluster.parentAttrGeo.position
+        pos=Geom::Vector3d.new(unit.position[0],unit.position[1],unit.position[2])
+
+        pos=(tr*pos) + pivot
+        pos = vector_add pos, @gp.bounds.min
         pos=vector_to_m pos
         size = vector_to_m unit.size, cluster.parentAttrGeo.reflection
-        for i in 0..1
+        for i in 0..2
           size[i]-=0.5
         end
-        rot=unit.rotation
+        rot=angle
 
-        param<<[pos,size,rot,color1]
+        param<<[pos,size,rot,color]
       end
     end
     msg="add_boxes(#{param.to_s})"

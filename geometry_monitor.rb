@@ -6,6 +6,8 @@
 module Geometry_Monitor
   @@l_sel=[]
   @@last_states={}
+  @@l_camera_pos=nil
+  @@l_camera_fov=nil
 
   def Geometry_Monitor.reset_timer()
     $note=Sketchup.active_model.add_note("note",0.05,0.05) if !$note or !$note.valid?
@@ -28,6 +30,9 @@ module Geometry_Monitor
   end
 
   def Geometry_Monitor.default_action
+
+    Geometry_Monitor.update_camera()
+
     sel=Sketchup.active_model.selection
     sel=self.filter_group(sel)
     if sel.size<1
@@ -100,6 +105,46 @@ module Geometry_Monitor
     rot=[gt.rotx,gt.roty,gt.rotz]
     loc=gt.origin.to_a
     return scl,rot,loc
+  end
+
+  def Geometry_Monitor.update_camera()
+    view = Sketchup.active_model.active_view
+    camera = view.camera
+    fov=camera.fov
+    pos=camera.eye
+    dir=camera.direction
+    dir.length=10
+    trg=pos+dir
+
+    sel=Sketchup.active_model.selection
+    if sel.size==1
+      g=sel[0]
+      offset=(g.bounds.max-g.bounds.min)
+      offset.length/=2
+      offset=g.bounds.min+offset
+      # pos = pos + Geom::Vector3d.new(offset[0],offset[1],offset[2])
+    end
+
+    con1 = @@l_camera_fov==nil || @@l_camera_fov!=fov
+    con2 = @@l_camera_pos==nil || @@l_camera_pos!=pos
+
+    if con1 || con2
+      #update camera status
+      p=[0,0,0]
+      t=[0,0,0]
+      for i in 0..2
+        p[i]=pos[i].to_f.to_m
+        t[i]=trg[i].to_f.to_m
+      end
+
+      wd=WD_Interact.singleton()
+      msg="update_camera(#{p.to_s},#{t.to_s})"
+      p msg
+      wd.execute_script(msg)
+    end
+
+    @@l_camera_pos=pos
+    @@l_camera_fov=fov
   end
 
 end

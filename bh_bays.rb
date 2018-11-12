@@ -131,6 +131,9 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     p "g.rotation=#{g.rotation}"
     composit.reflection=g.reflection
     composit.position=g.position
+
+
+
     for i in 0..countw-1
       for j in 0..counth-1
         # this p is orthogontal, transformation will be applied to the master geometry
@@ -140,9 +143,10 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         # attr geo for unit
         unit=MeshUtil::AttrBox.new
         unit.size=s.clone
-        unit.position=[p[0],p[1],p[2]]
-        unit.rotation=g.rotation
-        unit.reflection=g.reflection
+
+        unit.position=p
+        unit.rotation=0
+        unit.reflection=[1,1,1]
         cluster.units<<unit
 
         # composit.add_box(p,s,0)

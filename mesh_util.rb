@@ -1,7 +1,7 @@
 module MeshUtil
 
 
-  class AttrGeo < TreeStructure
+  class AttrGeo
     # attr_accessor :position
     attr_accessor :size
     # attr_accessor :rotation

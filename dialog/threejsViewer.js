@@ -5,7 +5,8 @@ var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera( 75, canvasW/canvasH, 0.1, 1000 );
 var renderer = new THREE.WebGLRenderer();
 var sunlight;
-var controls
+var controls;
+var saoPass;
 
 var geometries=[]
 var object3ds=[]
@@ -16,21 +17,20 @@ function init(){
     var geometries=[]
     var object3ds=[]
 
-    controls = new THREE.TrackballControls( camera );
-    // target=new THREE.Object3D();
-    // controls = new THREE.OrbitControls(target,camera);
-    controls.rotateSpeed = 4.0;
-    controls.zoomSpeed = 1.5;
-    controls.panSpeed = 1;
-    controls.noZoom = false;
-    controls.noPan = false;
-    controls.staticMoving = true;
-    controls.dynamicDampingFactor = 0.3;
+    // controls = new THREE.TrackballControls( camera );
+    // controls = new THREE.OrbitControls( camera, renderer.domElement );
+    // controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+    // controls.dampingFactor = 1;
+    // controls.screenSpacePanning = false;
+    // controls.minDistance = 10
+    // controls.maxDistance = 500;
+    // controls.maxPolarAngle = Math.PI / 2;
 
 
-    camera.position.set(52,-6,76)
-    camera.lookAt(0,0,0)
-    camera.far=100000
+    camera.position.set(-20,28,43)
+    camera.lookAt(new THREE.Vector3(0,0,0))
+    camera.far=10000
+    camera.setFocalLength(35)
 
     renderer.setSize(canvasW,canvasH,false);
     renderer.shadowMap.enabled = true;
@@ -39,30 +39,48 @@ function init(){
 
     scene.background = new THREE.Color( 0xffffff );
 
+    // SAO:
+    //
+    // composer = new THREE.EffectComposer( renderer );
+    // renderPass = new THREE.RenderPass( scene, camera );
+    // composer.addPass( renderPass );
+    // saoPass = new THREE.SAOPass( scene, camera, false, true );
+    // saoPass.renderToScreen = true;
+    // saoPass.params.saoScale=1.7;
+    // saoPass.params.saoBias=0;
+    // saoPass.params.saoKernelRadius=100
+    // saoPass.params.saoIntensity=0.002
+    // // saoPass.params.saoBlurRadius=2
+    // // saoPass.params.saoBlurDepthCutoff=0.008
+    // composer.addPass( saoPass );
+
+
+
     //lighting
     sunLight=lighting_setup();
 
     //add_box([0,0,0],[1,1,1]);
     //add_box([0.5,0.3,0],[1,1,1.5]);
     //add_box_m(10);
-    add_box_4();
+    //add_box_4();
+    add_test_units()
     refresh() ;
     console.log("done");
 
 }
 
 function lighting_setup(){
-    //sky
-    hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.3 );
-    hemiLight.color.setHSL( 0.6, 0.6, 1 );
-    hemiLight.groundColor.setHSL( 0.7, 0.7, 0.7 );
-    hemiLight.position.set( 0, 50, 0 );
-    //scene.add( hemiLight );
+    // //sky
+    // hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.3 );
+    // hemiLight.color.setHSL( 0.6, 0.6, 1 );
+    // hemiLight.groundColor.setHSL( 0.7, 0.7, 0.7 );
+    // hemiLight.position.set( 0, 50, 0 );
+    // //scene.add( hemiLight );
 
     //sun
     dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
-    dirLight.color.setHSL( 0.1, 1, 0.95 );
-    dirLight.position.set( 1, -0.85, 1 );
+    dirLight.color.setHSL( 1, 1, 1 );
+    dirLight.position.set( 1,2,0.5 );
     dirLight.position.multiplyScalar( 1 );
     scene.add( dirLight );
     scene.add(dirLight.target);
@@ -149,19 +167,37 @@ function enable_update(flag=true){
 }
 
 function add_box(pos=[0,0,0],size=[1,1,1],rot=0,color=[1,1,1]){
+    pos[1]*=-1
+    size[1]*=-1
+
     sx=Math.abs(size[0])
-    sy=Math.abs(size[1])
-    sz=Math.abs(size[2])
+    sy=Math.abs(size[2])
+    sz=Math.abs(size[1])
     var geo = new THREE.BoxGeometry(sx,sy,sz);
-    px=pos[0]+size[0]/2;
-    py=pos[1]+size[1]/2;
-    pz=pos[2]+size[2]/2;
+    px=pos[0];
+    py=pos[2];
+    pz=pos[1];
+
     geo.pos=[px,py,pz];
+    geo.translate(size[0]/2,size[2]/2,size[1]/2)
     geo.rot=rot / (180/Math.PI);
     geo.color=color;
     geometries.push(geo)
     invalidated=true;
     return geo;
+}
+
+function add_test_units(){
+    gap=[2.5,8.5,2.5]
+    size=[3,9,3]
+    for(var i=0;i<10;i++)
+    {
+        for (var j=0;j<3;j++)
+        {
+          p=[i*gap[0],0,j*gap[2]]
+          add_box(p,size)
+        }
+    }
 }
 
 function add_box_4(){
@@ -178,6 +214,13 @@ function add_box_4(){
     ]
 
     add_boxes(boxes)
+}
+
+function update_camera(pos,trg=[0,0,0],fov=35){
+    pos[1]*=-1
+    trg[1]*=-1
+    camera.position.set(pos[0],pos[2],pos[1])
+    camera.lookAt(new THREE.Vector3(trg[0],trg[2],trg[1]))
 }
 
 // function add_box(pos=[0,0,0],size=[1,1,1],rot=0){
@@ -214,7 +257,6 @@ function clear_scene(){
 
 
 function refreshGeometries(){
-
     if(invalidated==false || enableUpdate==false) return;
     console.log("invalidating");
     var diff =object3ds.length - geometries.length;
@@ -243,7 +285,7 @@ function refreshGeometries(){
         //console.log('>> i:'+i+' :'+g.uuid);
         m.geometry=g;
         m.position.set(g.pos[0],g.pos[1],g.pos[2]);
-        m.rotation.z=g.rot;
+        m.rotation.y=g.rot;
         m.material.color=g.color;
     }
     invalidated=false
@@ -253,8 +295,9 @@ function refresh(){
     requestAnimationFrame( refresh );
 
     refreshGeometries();
-    controls.update();
+    // controls.update();
     renderer.render(scene,camera);
+    // composer.render();
 }
 
 init();
