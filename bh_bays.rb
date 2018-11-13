@@ -104,9 +104,10 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     # org=g.position
     # org=Geom::Point3d.new(org.x,org.y,org.z)
     org=Geom::Point3d.new
+    unwidth=@host.attr('un_width').m
 
-    countw= (mw/3.0.m).round
-    counth= (mh/3.0.m).round
+    countw= (mw/unwidth).round
+    counth= (mh/unwidth).round
     bw=mw/countw
     bh=mh/counth
     # p "bw:#{bw.to_m} bh:#{bh.to_m}"

@@ -351,52 +351,28 @@
         window.location='skp:log@'+msg
     }
 
-    function update_model_from_ui(){
-        console.log('update_model_from_ui')
-        skp_log("update model from ui")
-        // 1 fetch checkbox states
-        //   example data:
-        //   'cb_double=>true,cb_L-shape=>true'
-        checkIds=['cb_double','cb_L-shape','cb_U-shape','cb_O-shape']
-        params=""
-        for(var i in checkIds){
-            id=checkIds[i]
-            var cb= document.getElementById(id);
-            value=cb.checked;
-            params += id + '=>' + value.toString() + ','
-        }
-        var msg='skp:set_check_boxes@'+params
-        console.log(msg)
-        window.location.assign(msg);
-
-        // 2 fetch BuildingBlox textbox (tableBB) states
-        var strdata=""
-        var trs=tableBB.table.getElementsByTagName("tr")
-        // console.log("trs.length="+trs.length)
-        for(var i=0;i<trs.length;i++){
-            var tr=trs[i]
-            var span=tr.getElementsByTagName("span")[0]
-            var input=tr.getElementsByTagName("input")[0]
-            var name=span.innerHTML;
-            var value=input.value
-            strdata+=name+"=>"+value+";"
-        }
-        var msg='skp:set_gp_attributes@'+strdata;
-        // console.log(msg)
-        window.location.assign(msg);
-
-        // 3 invalidate model
-        msg='skp:invalidate_model@';
-        window.location.assign(msg);
-        window.location.assign('skp:log@this is the last line')
-    }
 
     function set_gp_attributes_on_value_entry(name,value){
         // when "enter" is pressed, record ALL values on the table
         // and send them to skp
         // the function input "name,value" becomes useless
+        set_gp_attributes();
 
+    }
+
+    function set_gp_attributes()
+    {
         var strdata=""
+        // var selects=document.getElementsByTagName('select')
+        // console.log('-------------getting select values------')
+        // console.log('select.length='+selects.length)
+        // for(var i=0;i<selects.length;i++)
+        // {
+        //     var s=selects[i];
+        //     strdata+=s.id+"=>"+s.value+";";
+        //     console.log(s.id+"=>"+s.value);
+        // }
+        console.log('-------------end getting select values--')
         var trs=tableBB.table.getElementsByTagName("tr")
         console.log("trs.length="+trs.length)
         for(var i=0;i<trs.length;i++){
@@ -407,6 +383,7 @@
             var value=input.value
             strdata+=name+"=>"+value+";"
         }
+
 
         var msg='skp:set_gp_attributes@'+strdata;
         console.log(msg)
@@ -421,6 +398,8 @@
 
     gen_score_ratio_sliders()
     gen_view_mode_buttons()
+
+
 </script>
 <script src="selectionTable.js"></script>
 <script src="threejs/three.js"></script>
