@@ -106,6 +106,69 @@ module Arch
 
     end
 
+    def match_abstract_and_concrete_geometries
+      diff=@concrete_geometries.size-@abstract_geometries.size
+      if diff<0
+        diff.abs.times{|i|
+          g=@gp.entities.add_group
+          @concrete_geometries<<g
+        }
+      elsif diff>0
+        diff.times{
+          @concrete_geometries[-1].erase!
+          @concrete_geometries.pop
+        }
+      end
+    end
+
+    def _refresh_concrete_geometries()
+      abs=@abstract_geometries
+
+      # -------------------------------------------
+      # 1 add ot remove concrete geometries so that their number
+      #   will be equal to the abstract geometries'
+      # p " pre matching #{@abstract_geometries.size} abs to #{@concrete_geometries.size} crt"
+      match_abstract_and_concrete_geometries
+      # p " pos matching #{@abstract_geometries.size} abs to #{@concrete_geometries.size} crt"
+
+      # ---------------------------------
+      # 2 clear existing concrete geo
+
+      # create matrix for push nd pop matrix for polygon creation
+      gt=@gp.transformation
+      xs=gt.xscale
+      ys=gt.yscale
+      zs=gt.zscale
+      ti = ArchUtil.Transformation_scale_3d([1/xs,1/ys,1/zs])
+      tr=Geom::Transformation.rotation([0,0,0],Geom::Vector3d.new(0,0,1),gt.rotz.degrees)
+      tri=Geom::Transformation.rotation([0,0,0],Geom::Vector3d.new(0,0,1),-gt.rotz.degrees)
+
+      @concrete_geometries.size.times{|i|
+        cg=@concrete_geometries[i]
+        ag=@abstract_geometries[i]
+        m=ag.mesh()
+
+        # push matrix and create polygons
+        cg.transformation=Geom::Transformation.new
+        cg.transform! tri*ti
+        cg.entities.clear!
+        cg.entities.add_faces_from_mesh(m,0)
+
+        # fcount=0
+        # cg.entities.each{|f|
+        #   if f.is_a? Sketchup::Face
+        #     fcount+=1
+        #   end
+        # }
+        # p "[#{i}] adding ag polygon.size=#{m.count_polygons}, got g.faces.size=#{fcount}"
+        # if ag.color
+        #   cg.material=ag.color
+        # end
+        # pop matrix
+        cg.transform! tr
+      }
+    end
+
     def _add_all_abs_to_one()
       abs=@abstract_geometries
       if @concrete_geometries.size<1
@@ -127,7 +190,7 @@ module Arch
       # ti=@gp.transformation.inverse
       tr=Geom::Transformation.rotation([0,0,0],Geom::Vector3d.new(0,0,1),gt.rotz.degrees)
       tri=Geom::Transformation.rotation([0,0,0],Geom::Vector3d.new(0,0,1),-gt.rotz.degrees)
-      p "@g.rotz=#{gt.rotz}"
+      # p "@g.rotz=#{gt.rotz}"
       g.entities.clear!
 
       # Push matrix and load unit matrix

@@ -110,11 +110,28 @@ def _get_attr(table,key)
   a=g.get_attribute(table,key)
   return a
 end
+def _get_bb()
+  g=Sketchup.active_model.selection[0]
+  bb=Proto_Apt.created_objects[g]
+  return bb
+end
+def _get_updator(classname)
+  bb=_get_bb
+  ud=bb.get_updator_by_type(classname)
+  return ud
+end
+
+def _reload()
+  WD_Interact.singleton.dlg.close
+  load 'entry.rb'
+  g=Sketchup.active_model.selection[0]
+  startArchTest
+end
 
 ArchProto.reload_profiles
 ArchProto.reload_scripts if $entry_loaded_once != nil or $entry_loaded_once !=true
 $entry_loaded_once=true
-ArchProto.open_interaction
+ArchProto.open_interaction true
 
 
 

@@ -1,5 +1,6 @@
 module MeshUtil
 
+
   class AttrGeo
     # attr_accessor :position
     attr_accessor :size
@@ -11,6 +12,8 @@ module MeshUtil
     attr_accessor :alignment
     # attr_accessor :reflection
     attr_accessor :bounds
+    attr_accessor :children
+
 
 
     def initialize()
@@ -28,6 +31,8 @@ module MeshUtil
       @name=""
       @alignment= Alignment::SW
       @attributes=Hash.new
+      @parent=nil
+      @children=[]
     end
 
     def set_pos(pos)
@@ -46,8 +51,12 @@ module MeshUtil
       @position=pos
     end
 
-    def rotation
-      return @rotation
+    def rotation(parent=nil)
+      rot=@rotation
+      if parent!=nil
+        rot+=parent.rotation
+      end
+      return rot
     end
     def rotation=(rots)
       @rotation=rots
@@ -69,6 +78,7 @@ module MeshUtil
       _set_vects
     end
 
+
     def vects
       out_vects=[]
       out_vects<<@vects[0].clone
@@ -76,6 +86,12 @@ module MeshUtil
       out_vects<<@vects[2].clone
 
       return out_vects
+    end
+
+    def forward()
+      vect=@vects[1].clone
+      vect.length*=@reflection[1]
+      return vect
     end
 
     def _set_vects()
@@ -104,6 +120,53 @@ module MeshUtil
     def mesh(parent=nil)
       return nil
     end
+
+    def parent
+      return @parent
+    end
+
+    def parent=(parent)
+      @parent=parent
+      if !parent.children.include? self
+        parent.children<<self
+      end
+    end
+
+    def add(tree)
+      children<<tree
+      tree.parent=self
+    end
+
+    def get_untrans_geo(levels=-1)
+
+    end
+    def _untransform(subject,transform)
+      # subject: array of [pos,scale,rot]
+      # transform: Geom::Transformation
+      t = transform
+      u_pos=t.origin
+      u_scale=[t.xscale,t.yscale,t.zscale]
+      u_rot=transform.rotz
+      return _untransform_array(subject,[u_pos,u_scale,u_rot])
+    end
+    def _untransform_array(array,untrans_ref)
+      # both inputs are arrays: [ trans, scale, rot]
+      output=[[],[],[]]
+      # do we need to scale the local position?
+      pos = vector_scale3d array[0],untrans_ref[1]
+      pos = vector_add pos, untrans_ref[0]
+      size = vector_scale3d array[1],reverse_scale(untrans_ref[1])
+      rot = array[2] + untrans_ref[2]
+      return [pos,size,rot]
+    end
+    def untransform(abs_geo,untransform_refs)
+      # untransform_refs is an array of refs
+      # sample untransform_refs:
+      # [ cloeset_parent , grand_parent  , third_level_ancestor]
+      # [ [pos,scale,rot],[pos,scale,rot],[pos,scale,rot]]
+      #
+    end
+
   end
 
   class AttrComposit < AttrGeo

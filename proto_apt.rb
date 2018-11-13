@@ -50,7 +50,10 @@ class Proto_Apt < BuildingBlock
     @updators << @g_composition
     @updators << @g_evacuation
     @updators << BH_Bays.new(g,self)
+    @updators << BH_Orientation.new(g,self)
     @updators << @g_area
+    #@updators << BH_Representations.new(g,self)
+    @updators << BH_Update_WebGL.new(g,self)
     @updators << @g_update_web_scores
   end
 
