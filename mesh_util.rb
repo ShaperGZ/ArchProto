@@ -234,7 +234,7 @@ module MeshUtil
     end
 
     def _offset_pts(org)
-      org=@base_pts[0].clone if org==nil
+      org=Geom::Point3d.new() if org==nil
       @offset=org
       @position=Geom::Point3d.new
 
@@ -276,6 +276,7 @@ module MeshUtil
       #TODO: needs rotation, rotate the base pts first
 
       flip=(@reflection[0]*@reflection[1]*@reflection[2])<0
+      p "flip=#{flip}"
       out_mesh=MeshUtil.extrude_to_mesh_faces(@base_pts,@height,parent,flip)
 
       trans_reverse_offset=Geom::Transformation.translation(ArchUtil.to_vector3d ArchUtil.vector_scale(@offset,-1))
@@ -478,13 +479,13 @@ module MeshUtil
 
   def MeshUtil.extrude_to_mesh_faces(pts,h,mesh,flip=false)
     mesh=Geom::PolygonMesh.new if mesh==nil
+    pts.reverse! if flip
     MeshUtil.add_poly_to_mesh_faces(pts,mesh)
     # p mesh.polygons
 
     for i in 0..pts.size-1
       j=i+1
       j=0 if j>=pts.size
-      p "i=#{i},j=#{j}"
       vpts=[]
       vpts<<(pts[i])
       vpts<<(pts[j])
