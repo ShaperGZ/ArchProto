@@ -163,4 +163,49 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     end
 
   end
+
+  def convert_definition_to_absgeo(definition,h)
+    absgeos=[]
+    definition.entities.each{|e|
+      ents=[]
+      color='white'
+      if e.is_a? Sketchup::Group
+        ents=e.entities
+      elsif e.is_a? Sketchup::ComponentInstance
+        ents=e.definition.entities
+      else
+        continue
+      end
+
+      if e.name.include? 'str'
+        color='dargkred'
+      elsif e.name.include? 'lft'
+        color='gold'
+      elsif e.name.include? 'srv'
+        color='gray'
+      end
+
+
+      poly=_get_up_facing_face(ents)
+      ext=MeshUtil::AttrExtrusion.new(poly,h)
+      ext.color=color
+      absgeos<ext
+    }
+    return absgeos
+  end
+
+  def _get_up_facing_face(ents)
+    for e in ents
+      if e.is_a? Sketchup::Face and e.normal.z==-1
+        verts=e.vertices
+        verts.reverse!
+        pts=[]
+        for v in verts
+          pts<<v.position
+        end
+        return pts
+      end
+      return nil
+    end
+  end
 end

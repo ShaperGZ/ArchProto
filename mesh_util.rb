@@ -225,10 +225,22 @@ module MeshUtil
   class AttrExtrusion < AttrGeo
     attr_accessor :base_pts
     attr_accessor :height
-    def initialize(pts,h)
+    def initialize(pts,h,org=nil)
       super()
       @base_pts = pts
       @height = h
+      _offset_pts(org)
+      _set_size_from_base()
+    end
+
+    def _offset_pts(org)
+      org=@base_pts[0].clone if org==nil
+      @offset=org
+      @position=Geom::Point3d.new
+
+      # for i in 0..@base_pts.size-1
+      #   @base_pts[i]=@base_pts[i]-org
+      # end
     end
 
     def _set_size_from_base()
@@ -263,7 +275,19 @@ module MeshUtil
       #reflect, rotate, translate
       #TODO: needs rotation, rotate the base pts first
 
-      m=MeshUtil.extrude_to_mesh_faces(@base_pts,@height,parent)
+      flip=(@reflection[0]*@reflection[1]*@reflection[2])<0
+      out_mesh=MeshUtil.extrude_to_mesh_faces(@base_pts,@height,parent,flip)
+
+      trans_reverse_offset=Geom::Transformation.translation(ArchUtil.to_vector3d ArchUtil.vector_scale(@offset,-1))
+
+      trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
+      trans_translate=Geom::Transformation.translation(@position)
+      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
+      out_mesh.transform! trans_reverse_offset
+      out_mesh.transform! trans_reflect
+      out_mesh.transform! trans_rotate
+      out_mesh.transform! trans_translate
+      return out_mesh
     end
   end
 
@@ -452,7 +476,7 @@ module MeshUtil
     return mesh
   end
 
-  def MeshUtil.extrude_to_mesh_faces(pts,h,mesh)
+  def MeshUtil.extrude_to_mesh_faces(pts,h,mesh,flip=false)
     mesh=Geom::PolygonMesh.new if mesh==nil
     MeshUtil.add_poly_to_mesh_faces(pts,mesh)
     # p mesh.polygons
@@ -460,6 +484,7 @@ module MeshUtil
     for i in 0..pts.size-1
       j=i+1
       j=0 if j>=pts.size
+      p "i=#{i},j=#{j}"
       vpts=[]
       vpts<<(pts[i])
       vpts<<(pts[j])
@@ -569,4 +594,40 @@ module MeshUtil
     end
     return sorted
   end
+end
+
+
+load 'arch_util_apdx_arithmic.rb'
+def temp_test()
+
+  pts=[
+      Geom::Point3d.new(0,0,0),
+      Geom::Point3d.new(1.m,0,0),
+      Geom::Point3d.new(1.m,1.m,0),
+      Geom::Point3d.new(0.5.m,1.m,0),
+      Geom::Point3d.new(0.5.m,1.5.m,0),
+      Geom::Point3d.new(0,1.5.m,0),
+  ]
+  pts.reverse!
+
+  f=Sketchup.active_model.selection[0]
+  verts=f.vertices
+  pts=[]
+  for v in verts
+    pts<<v.position
+  end
+  ext=MeshUtil::AttrExtrusion.new(pts,10,Geom::Point3d.new(2.45.m,1.67.m))
+
+  # ext.position=Geom::Point3d.new(1.m,0,0)
+  MeshUtil.add_model(ext.mesh)
+
+  # ext.position=Geom::Point3d.new(-1.m,0,0)
+  ext.reflection=[-1,1,1]
+  MeshUtil.add_model(ext.mesh)
+
+  ext.rotation=45
+  ext.reflection=[-1,-1,1]
+  # ext.position=Geom::Point3d.new(-1.m,-1.m,0)
+  MeshUtil.add_model(ext.mesh)
+
 end

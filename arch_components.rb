@@ -37,6 +37,11 @@ module ArchComponents
     return o
   end
 
+  def ArchComponents.get_definition(key)
+    return $arch_skp_definitions[key] if $arch_skp_definitions.key? key
+    return nill
+  end
+
   def ArchComponents.get_names(key)
     # extract the names for display from the arch component dictionary
     if !$arch_components.key? key
