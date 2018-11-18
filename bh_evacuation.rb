@@ -12,8 +12,11 @@ module Evacuation
 
     end
     def geo_at_dist(d)
+      # d is the distance from the begining of a poly
       d=d.m
+      # total is use to keep track of segment lengths
       total=0
+
       for seg in @segments
         nextdist = total + seg.length
         if nextdist >= d
@@ -24,11 +27,16 @@ module Evacuation
           xvect.length = trim
           pos = geo.position + xvect
           b.position = pos
-          b.attributes['true_position']=b.position.clone
-          b.position-= Geom::Vector3d.new(1.5.m,1.5.m,0)
+          b.rotation=geo.rotation
+          b.attributes['true_position']=pos.clone
+          # b.position-= Geom::Vector3d.new(1.5.m,1.5.m,0)
           b.size=[3.m,3.m,3.m]
           b.name='MK_STAIR'
           b.attributes['parent_start']=geo.position
+          b.attributes['d']=d
+          # the real distance in a segment is (d-total) since total is the sum of previous segment lengths
+          b.attributes['percentage_in_segment']=(d-total)/seg.length
+          b.attributes['parent_name']=geo.name
           xvect=geo.vects[0]
           xvect.length=geo.size[0]
           b.attributes['parent_end']=geo.position+xvect
@@ -61,16 +69,26 @@ module Evacuation
 end
 
 class BH_Evacuation < Arch::BlockUpdateBehaviour
+  attr_accessor :str_cores
+  attr_accessor :lft_cores
+
   def initialize(gp,host)
     super(gp,host)
     @efficiency=0
+    @lft_cores=[]
+    @str_cores=[]
   end
 
   def invalidate()
 
     bh_composition=@host.get_updator_by_type(BH_Apt_Composition)
-    composition=bh_composition.composition
-    abs_geo=bh_composition.abstract_geometries
+
+
+    # this gets dict list of bool
+    # keys are:["double","L-shape","U-shape","O-shape"]
+    p "composition is #{bh_composition}"
+    shapes=bh_composition.composition()
+    comp_abs_geo=bh_composition.abstract_geometries
     circulations=[]
     segments=[]
 
@@ -85,11 +103,11 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     offset=un_depth.m
     p "-------------------------------------"
 
-    # get corridors in order
+    # 1 get corridors in order from abstract geometries in composition
     corridors_ordered_names=['C2','C1','C3','C4']
     ordered_cs=[]
     for k in corridors_ordered_names
-      for g in abs_geo
+      for g in comp_abs_geo
         if g.name.include? k
           ordered_cs<<g
           break
@@ -97,8 +115,30 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
       end
     end
 
+
+
+    # 2 add all corridors to segments[] to create a poly
+    # however, c1 must be trimed in 'L','U',
+    # c4 will be trimed in 'O' format
     for g in ordered_cs
+      geo=g
       if g.name=='C1'
+        # determine compositon type
+        if (shapes['L-shape'] || shapes['U-shape'] || shapes['O-shape'])
+          b=MeshUtil::AttrBox.new()
+          b.position=g.position+ Geom::Vector3d.new(offset,0,0)
+          b.size=g.size
+          if(shapes['L-shape'])
+            b.size[0]-=(offset)
+          else
+            b.size[0]-=(offset*2)
+          end
+          b.rotation=g.rotation
+          b.reflection=g.reflection
+          b.name='C1trim'
+          geo=b
+        end
+      elsif g.name=='C4'
         b=MeshUtil::AttrBox.new()
         b.position=g.position+ Geom::Vector3d.new(offset,0,0)
         b.size=g.size
@@ -106,12 +146,13 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
         b.rotation=g.rotation
         b.reflection=g.reflection
         b.name='C1trim'
-        g=b
+        geo=b
       end
 
       # p "g=#{g.name}.pos=#{g.position}"
-      circulations<<g
-      segments<< Evacuation::Segment.new(g)
+      geo.name=g.name
+      circulations<<geo
+      segments<< Evacuation::Segment.new(geo)
       # @abstract_geometries<<gen_bays(g)
     end
 
@@ -125,7 +166,8 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     @gp.set_attribute("PrototypeScores","VertlEvac",[@efficiency,eff_dscr])
     # p "poly.length=#{length} numE=#{numE} efficiency=#{@efficiency}"
 
-    # create abstract geometries
+
+    # 3 create abstract geometries
     @abstract_geometries=[]
     h_offset=Geom::Vector3d.new(0,0,bd_height.m)
     dist=0
@@ -140,27 +182,74 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
       dist+=15
     end
 
+
+
+    # 4 entrace_name is a corridor name such as 'C1' or 'C4'
+    # the default value is C1, there no UI to update this value
+    # a command is provided in arch_util_apdx_helper as 'set_entrance(int)'
+    entrance_name='C'+@gp.get_attribute("OperableStates","entrance_number").to_s
+
+    # 5 find the marker closest to the defined entrance
+    pool=[]
+    closest=@abstract_geometries[0]
+    closest_p=1
+    @lft_cores=[]
+    @str_cores=[]
+
+    for g in @abstract_geometries
+      str_cores<<g
+      if g.attributes['parent_name']==entrance_name
+        # the percentage is between 0 and 1, the following formular is to find the value closeset to 0.5(middle)
+        percentage=(g.attributes['percentage_in_segment']-0.5).abs
+        if percentage<closest_p
+          closest_p=percentage
+          closest=g
+        end
+        pool<<g
+      end
+    end
+
+    #enlarge the lift core to visualize
+    closest.size[0]*=3
+
+    @lft_cores<<closest
+    for c in @lft_cores
+      @str_cores.delete(c)
+    end
+
+
+
+
     #add geometries to model
     _add_all_abs_to_one
 
-    for ag in @abstract_geometries
-      s1=ag.attributes['parent_start']+h_offset
-      e1=ag.attributes['true_position']+h_offset
-      s2=e1
-      e2=ag.attributes['parent_end']+h_offset
-      d_offset=ag.vects[1]
-      d_offset.length*=-30.m
-      # p "s1:#{s1},e1:#{e1}-----s2:#{s2},e2:#{e2}"
+    # failed code for dimension
+    # for ag in @abstract_geometries
+    #   s1=ag.attributes['parent_start']+h_offset
+    #   e1=ag.attributes['true_position']+h_offset
+    #   s2=e1
+    #   e2=ag.attributes['parent_end']+h_offset
+    #   d_offset=ag.vects[1]
+    #   d_offset.length*=-30.m
+    #   # p "s1:#{s1},e1:#{e1}-----s2:#{s2},e2:#{e2}"
+    #
+    #   g=@concrete_geometries[0]
+    #   #TODO: unkown bug in add dimension arguments
+    #   # begin
+    #   #   g.entities.add_dimension_linear(s1,e1,d_offset)
+    #   #   g.entities.add_dimension_linear(s2,e2,d_offset)
+    #   # rescue
+    #
+    #   # end
+    # end
 
-      g=@concrete_geometries[0]
-      #TODO: unkown bug in add dimension arguments
-      # begin
-      #   g.entities.add_dimension_linear(s1,e1,d_offset)
-      #   g.entities.add_dimension_linear(s2,e2,d_offset)
-      # rescue
-
-      # end
+    for c in @concrete_geometries
+      c.material='red'
     end
+
+  end
+
+  def create_abs_from_def(definition)
 
   end
 

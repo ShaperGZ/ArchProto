@@ -18,8 +18,13 @@ class Proto_Apt < BuildingBlock
       p "creating a Proto_Apt instance"
       b=Proto_Apt.new(g,param_file)
       Proto_Apt.created_objects[g.guid]=b
+
+      g.set_attribute("OperableStates","entrance_number",1)
+      comp_arr=[["cb_double", false], ["cb_L-shape", true], ["cb_U-shape", false], ["cb_O-shape", false]]
+      g.set_attribute("OperableStates","composition",comp_arr)
+
       b.invalidate()
-      return b
+
     end
   end
 
@@ -41,20 +46,16 @@ class Proto_Apt < BuildingBlock
     hide_nongroup(g)
 
     # TODO: set the default g_composition
-    @g_composition=BH_Apt_Composition.new(g,self)
-    @g_evacuation=BH_Evacuation.new(g,self)
-    @g_area=BH_Apt_Area.new(g,self)
-    @g_update_web_scores=BH_Update_Web_Scores.new(g,self)
 
     @updators << BH_Dimension.new(g,self)
-    @updators << @g_composition
-    @updators << @g_evacuation
+    @updators << @g_composition=BH_Apt_Composition.new(g,self)
+    @updators << @g_evacuation=BH_Evacuation.new(g,self)
     @updators << BH_Bays.new(g,self)
     @updators << BH_Orientation.new(g,self)
-    @updators << @g_area
-    #@updators << BH_Representations.new(g,self)
+    @updators << @g_area=BH_Apt_Area.new(g,self)
+    @updators << BH_Load_component.new(g,self)
     @updators << BH_Update_WebGL.new(g,self)
-    @updators << @g_update_web_scores
+    @updators << @g_update_web_scores=BH_Update_Web_Scores.new(g,self)
   end
 
   def hide_nongroup(g)

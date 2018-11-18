@@ -9,9 +9,12 @@ class UnitCluster
   attr_accessor :west_factor
   attr_accessor :parentAttrGeo
   attr_accessor :units
+  attr_accessor :name
 
   def initialize
     @units=[]
+    @standard_floors=[]
+    @name=''
   end
 
   def size
@@ -41,14 +44,23 @@ end
 
 class BH_Bays < Arch::BlockUpdateBehaviour
   attr_accessor :unitClusters
+  # keep all units by: floors[]
+  #                   each contains clusters[]
+  #                   each contains units
+  attr_accessor :floors
+  attr_accessor :typical_floors
+  attr_accessor :typical_indices
   def initialize(gp,host)
     #p 'f=initialized constrain face'
     @unitClusters=[]
     @units_oriented=Hash.new()
+    @typical_indices=[1]
     super(gp,host)
   end
 
   def invalidate()
+    @typical_floors=Hash.new()
+    @floors=[]
     t1=Time.now
     composition=@host.get_updator_by_type(BH_Apt_Composition)
     abs_geo=composition.abstract_geometries
@@ -118,6 +130,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     cluster.parentAttrGeo=g
     cluster.cal_orientation(@gp)
     cluster.units=[]
+    cluster.name=g.name
 
     r=g.rotation
     r+=@gp.transformation.rotz
@@ -137,6 +150,13 @@ class BH_Bays < Arch::BlockUpdateBehaviour
 
     for i in 0..countw-1
       for j in 0..counth-1
+        # create floor j
+        if @floors.size<=j
+          @floors<<[]
+        end
+        @floors[j] << f_cluster=UnitCluster.new()
+
+
         # this p is orthogontal, transformation will be applied to the master geometry
         p = org+ Geom::Vector3d.new(i*bw,0,j*bh)
         s = [bw,bd,bh]
@@ -149,7 +169,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         unit.rotation=0
         unit.reflection=[1,1,1]
         cluster.units<<unit
-
+        f_cluster.units<<unit
         # composit.add_box(p,s,0)
         pts=[]
         pts << p
@@ -157,6 +177,14 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         pts << pts[1] + vz
         pts << p + vz
         pts.reverse! if flip <0
+
+        if typical_indices.include? j
+          if !@typical_floors.key? j
+            @typical_floors[j]=[]
+          end
+          @typical_floors[j]<<f_cluster
+        end
+
 
         # composit.add_polygon(pts)
         if j==counth-1

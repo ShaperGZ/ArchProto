@@ -207,7 +207,15 @@ module MeshUtil
     end
 
     def size
-      return @meshs.size
+      bbox=Geom::BoundingBox.new
+      bbox.add(@mesh.points)
+      min=bbox.min
+      max=bbox.max
+      size=[1,1,1]
+      for i in 0..2
+        size[i]=max[i]-min[i]
+      end
+      return size
     end
 
     def mesh
@@ -422,10 +430,18 @@ module MeshUtil
 
   def MeshUtil.add_model(mesh,parent=nil,smooth=0)
     parent=Sketchup.active_model.entities.add_group if parent==nil
-
-
     parent.entities.add_faces_from_mesh(mesh,smooth)
     return parent
+  end
+
+  def MeshUtil.add_geos_to_model(geo,parent=nil,smooth=0)
+    if geo.is_a? Array
+      for g in geo
+        MeshUtil.add_geos_to_model(g,parent,smooth)
+      end
+    else
+      g=MeshUtil.add_model(geo.mesh,parent,smooth)
+    end
   end
 
   def MeshUtil.box(pos=nil,size=nil,rot=nil,mesh=nil, flip=false)
@@ -595,6 +611,36 @@ module MeshUtil
     end
     return sorted
   end
+
+  def MeshUtil.create_from_definition(definition)
+    abs_geos=[]
+    ents=definition.entities
+    for g in ents
+      gents=[]
+      if g.is_a? Sketchup::Group
+        gents=g.entities
+      elsif g.is_a? Sketchup::ComponentInstance
+        gents=g.definition.entities
+      else
+        next
+      end
+      abs=MeshUtil::AttrComposit.new()
+      # abs.position=g.transformation.origin
+      # abs.rotation=g.transformation.rotz
+      itf=g.transformation
+      for e in gents
+        if e.is_a? Sketchup::Face
+          pts=[]
+          e.vertices.each{|v|
+            pts<<itf *  v.position
+          }
+          abs.add_polygon(pts)
+        end
+      end #end for e in gents
+      abs_geos<<abs
+    end # end for g in ents
+    return abs_geos
+  end # end function
 end
 
 
