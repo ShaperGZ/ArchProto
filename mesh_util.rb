@@ -14,8 +14,6 @@ module MeshUtil
     attr_accessor :bounds
     attr_accessor :children
 
-
-
     def initialize()
       @position=[0,0,0]
       @size=[1,1,1]
@@ -28,9 +26,9 @@ module MeshUtil
           Geom::Vector3d.new(0,1,0),
           Geom::Vector3d.new(0,0,1)
       ]
-      @name=""
+      @name= ""
       @alignment= Alignment::SW
-      @attributes=Hash.new
+      @attributes= Hash.new
       @parent=nil
       @children=[]
     end
@@ -190,7 +188,8 @@ module MeshUtil
       for f in m.polygons
         nf=[]
         for i in f
-          nf<< m.points[i-1]
+          p= m.points[i-1]
+          nf<<p
         end
         @mesh.add_polygon(nf)
       end
@@ -198,6 +197,12 @@ module MeshUtil
 
     def clone()
       return AttrComposit.new(mesh())
+    end
+
+    def add_abs_geometries(geos)
+      for g in geos
+        add g.mesh
+      end
     end
 
     def add_range(ms)

@@ -28,6 +28,7 @@ module ArchProto
     ordered_files << directory + 'constances.rb'
     ordered_files += Dir.glob(directory + 'arch_util*.rb')
     ordered_files << directory + 'mesh_util.rb'
+    ordered_files << directory + 'floor.rb'
     ordered_files << directory + 'html_dialog_wrapper.rb'
     ordered_files << directory + 'observer_manager.rb'
     ordered_files << directory + 'archi.rb'
