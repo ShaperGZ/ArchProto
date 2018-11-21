@@ -1,3 +1,4 @@
+require 'win32ole'
 module ArchUtil
   class ExcelConduit
     attr_accessor :excel
@@ -11,6 +12,11 @@ module ArchUtil
     end
 
     def connect_dynamic(workbook, sheet='sheet1')
+      # sample usage
+      # excel_conduit = ArchUtil::ExcelConduit.new()
+      # workbook='PlayGround.xlsx'
+      # excel_conduit.connect_dynamic(workbook,sheet='InstanceData')
+      # excel_conduit.connect_dynamic(workbook,sheet='StaticData')
       begin
         p "Trying to connect to workbook: #{workbook}"
         @excel = WIN32OLE.connect("excel.application")

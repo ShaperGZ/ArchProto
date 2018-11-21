@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<button type="button" onclick="delayed_loop(0,3,iter_dimension)">iter dimension</button>
+</body>
+
+<script>
+    function  delayed_loop(i,max,func) {
+        if (i>max) return;
+        setTimeout(function(){
+            func(i)
+            i+=1
+            delayed_loop(i,max,func)
+        },150)
+    }
+
+    function iter_dimension(i) {
+        console.log("f(i):"+i);
+        w=30+(i*3)
+        d=30
+        h=30
+        msg= 'skp:resize_bd@'+w+','+d+','+h;
+        window.location=msg
+    }
+</script>
+</html>
