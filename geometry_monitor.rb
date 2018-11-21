@@ -139,7 +139,7 @@ module Geometry_Monitor
 
       wd=WD_Interact.singleton()
       msg="update_camera(#{p.to_s},#{t.to_s})"
-      p msg
+      # p msg
       wd.execute_script(msg)
     end
 

@@ -14,8 +14,6 @@ module MeshUtil
     attr_accessor :bounds
     attr_accessor :children
 
-
-
     def initialize()
       @position=[0,0,0]
       @size=[1,1,1]
@@ -28,9 +26,9 @@ module MeshUtil
           Geom::Vector3d.new(0,1,0),
           Geom::Vector3d.new(0,0,1)
       ]
-      @name=""
+      @name= ""
       @alignment= Alignment::SW
-      @attributes=Hash.new
+      @attributes= Hash.new
       @parent=nil
       @children=[]
     end
@@ -190,7 +188,8 @@ module MeshUtil
       for f in m.polygons
         nf=[]
         for i in f
-          nf<< m.points[i-1]
+          p= m.points[i-1]
+          nf<<p
         end
         @mesh.add_polygon(nf)
       end
@@ -200,6 +199,12 @@ module MeshUtil
       return AttrComposit.new(mesh())
     end
 
+    def add_abs_geometries(geos)
+      for g in geos
+        add g.mesh
+      end
+    end
+
     def add_range(ms)
       for m in ms
         add m
@@ -207,7 +212,15 @@ module MeshUtil
     end
 
     def size
-      return @meshs.size
+      bbox=Geom::BoundingBox.new
+      bbox.add(@mesh.points)
+      min=bbox.min
+      max=bbox.max
+      size=[1,1,1]
+      for i in 0..2
+        size[i]=max[i]-min[i]
+      end
+      return size
     end
 
     def mesh
@@ -225,10 +238,22 @@ module MeshUtil
   class AttrExtrusion < AttrGeo
     attr_accessor :base_pts
     attr_accessor :height
-    def initialize(pts,h)
+    def initialize(pts,h,org=nil)
       super()
       @base_pts = pts
       @height = h
+      _offset_pts(org)
+      _set_size_from_base()
+    end
+
+    def _offset_pts(org)
+      org=Geom::Point3d.new() if org==nil
+      @offset=org
+      @position=Geom::Point3d.new
+
+      # for i in 0..@base_pts.size-1
+      #   @base_pts[i]=@base_pts[i]-org
+      # end
     end
 
     def _set_size_from_base()
@@ -263,7 +288,20 @@ module MeshUtil
       #reflect, rotate, translate
       #TODO: needs rotation, rotate the base pts first
 
-      m=MeshUtil.extrude_to_mesh_faces(@base_pts,@height,parent)
+      flip=(@reflection[0]*@reflection[1]*@reflection[2])<0
+      p "flip=#{flip}"
+      out_mesh=MeshUtil.extrude_to_mesh_faces(@base_pts,@height,parent,flip)
+
+      trans_reverse_offset=Geom::Transformation.translation(ArchUtil.to_vector3d ArchUtil.vector_scale(@offset,-1))
+
+      trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
+      trans_translate=Geom::Transformation.translation(@position)
+      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
+      out_mesh.transform! trans_reverse_offset
+      out_mesh.transform! trans_reflect
+      out_mesh.transform! trans_rotate
+      out_mesh.transform! trans_translate
+      return out_mesh
     end
   end
 
@@ -397,10 +435,18 @@ module MeshUtil
 
   def MeshUtil.add_model(mesh,parent=nil,smooth=0)
     parent=Sketchup.active_model.entities.add_group if parent==nil
-
-
     parent.entities.add_faces_from_mesh(mesh,smooth)
     return parent
+  end
+
+  def MeshUtil.add_geos_to_model(geo,parent=nil,smooth=0)
+    if geo.is_a? Array
+      for g in geo
+        MeshUtil.add_geos_to_model(g,parent,smooth)
+      end
+    else
+      g=MeshUtil.add_model(geo.mesh,parent,smooth)
+    end
   end
 
   def MeshUtil.box(pos=nil,size=nil,rot=nil,mesh=nil, flip=false)
@@ -452,8 +498,9 @@ module MeshUtil
     return mesh
   end
 
-  def MeshUtil.extrude_to_mesh_faces(pts,h,mesh)
+  def MeshUtil.extrude_to_mesh_faces(pts,h,mesh,flip=false)
     mesh=Geom::PolygonMesh.new if mesh==nil
+    pts.reverse! if flip
     MeshUtil.add_poly_to_mesh_faces(pts,mesh)
     # p mesh.polygons
 
@@ -569,4 +616,70 @@ module MeshUtil
     end
     return sorted
   end
+
+  def MeshUtil.create_from_definition(definition)
+    abs_geos=[]
+    ents=definition.entities
+    for g in ents
+      gents=[]
+      if g.is_a? Sketchup::Group
+        gents=g.entities
+      elsif g.is_a? Sketchup::ComponentInstance
+        gents=g.definition.entities
+      else
+        next
+      end
+      abs=MeshUtil::AttrComposit.new()
+      # abs.position=g.transformation.origin
+      # abs.rotation=g.transformation.rotz
+      itf=g.transformation
+      for e in gents
+        if e.is_a? Sketchup::Face
+          pts=[]
+          e.vertices.each{|v|
+            pts<<itf *  v.position
+          }
+          abs.add_polygon(pts)
+        end
+      end #end for e in gents
+      abs_geos<<abs
+    end # end for g in ents
+    return abs_geos
+  end # end function
+end
+
+
+load 'arch_util_apdx_arithmic.rb'
+def temp_test()
+
+  pts=[
+      Geom::Point3d.new(0,0,0),
+      Geom::Point3d.new(1.m,0,0),
+      Geom::Point3d.new(1.m,1.m,0),
+      Geom::Point3d.new(0.5.m,1.m,0),
+      Geom::Point3d.new(0.5.m,1.5.m,0),
+      Geom::Point3d.new(0,1.5.m,0),
+  ]
+  pts.reverse!
+
+  f=Sketchup.active_model.selection[0]
+  verts=f.vertices
+  pts=[]
+  for v in verts
+    pts<<v.position
+  end
+  ext=MeshUtil::AttrExtrusion.new(pts,10,Geom::Point3d.new(2.45.m,1.67.m))
+
+  # ext.position=Geom::Point3d.new(1.m,0,0)
+  MeshUtil.add_model(ext.mesh)
+
+  # ext.position=Geom::Point3d.new(-1.m,0,0)
+  ext.reflection=[-1,1,1]
+  MeshUtil.add_model(ext.mesh)
+
+  ext.rotation=45
+  ext.reflection=[-1,-1,1]
+  # ext.position=Geom::Point3d.new(-1.m,-1.m,0)
+  MeshUtil.add_model(ext.mesh)
+
 end

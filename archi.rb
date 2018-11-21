@@ -207,8 +207,18 @@ module Arch
 
       # pop matrix
       g.transform! tr
-
     end
+
+    def _untransform_internal_entity(g)
+      gt=@gp.transformation
+      xs=gt.xscale
+      ys=gt.yscale
+      zs=gt.zscale
+      ti = ArchUtil.Transformation_scale_3d([1/xs,1/ys,1/zs])
+      # g.transformation=Geom::Transformation.new
+      g.transform! ti
+    end
+
 
     def create_geometry(key,position,size,rotation=0,flip=[1,1,1],alignment=Alignment::SW, meter=true, color=nil)
       if position == nil or size == nil
@@ -272,7 +282,6 @@ module Arch
       @entObs=[]
       @entsObs=[]
       @updators=[]
-
 
       #ObserverManager.Add(@gp.entities,EntsObs.new(self))
       #ObserverManager.Add(@gp,EntObs.new(self))

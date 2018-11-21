@@ -23,10 +23,12 @@ module ArchProto
     directory=self.get_file_path('')
     ordered_files = []
     ordered_files << directory + 'geometry_monitor.rb'
+    ordered_files << directory + 'arch_components.rb'
     # ordered_files << directory + 'arch_tools_observer.rb'
     ordered_files << directory + 'constances.rb'
     ordered_files += Dir.glob(directory + 'arch_util*.rb')
     ordered_files << directory + 'mesh_util.rb'
+    ordered_files << directory + 'floor.rb'
     ordered_files << directory + 'html_dialog_wrapper.rb'
     ordered_files << directory + 'observer_manager.rb'
     ordered_files << directory + 'archi.rb'
