@@ -1,17 +1,19 @@
 require 'win32ole'
+$excel
+$workbook
 module ArchUtil
   class ExcelConduit
     attr_accessor :excel
     attr_accessor :work_book
-    attr_accessor :work_sheets
+    attr_accessor :work_sheet
     @excel=nil
     @work_book=nil
-    @work_sheets
+    @work_sheet=nil
+    @work_sheets=nil
     def initialize()
-      @work_sheets=Hash.new
     end
 
-    def connect_dynamic(workbook, sheet='sheet1')
+    def connect_dynamic(workbook)
       # sample usage
       # excel_conduit = ArchUtil::ExcelConduit.new()
       # workbook='PlayGround.xlsx'
@@ -20,13 +22,16 @@ module ArchUtil
       begin
         p "Trying to connect to workbook: #{workbook}"
         @excel = WIN32OLE.connect("excel.application")
+        $excel=@excel
         p "@excel=#{@excel}"
         @work_book = @excel.Workbooks(workbook)
-        p "@work_book=#{@work_book}"
-        @work_sheets[sheet] = @work_book.Worksheets(sheet)
-        p "已连接到#{@work_sheets[sheet].name}"
+        $workbook=@work_book
+        p "@work_book=#{@work_book} "
+        #@work_sheet = @work_book.WorkSheets(sheet)
+        #p "已连接到#{@work_sheet}"
       rescue
-       p "failed to connect to excel #{workbook}.#{sheet}"
+        p $ERROR_INFO
+       p "failed to connect to excel #{workbook}"
       end
 
 
@@ -34,11 +39,11 @@ module ArchUtil
     end
 
     def update_matrix(data, sheet, clear_size_h=80,clear_size_w=8)  #更新整个execel
-      if !@work_sheets.key?sheet or @work_sheets[sheet]==nil
+      if !@work_sheet.key? sheet or @work_sheet[sheet]==nil
         p "excel is not connected to a work sheet: #{sheet}"
         return
       end
-      work_sheet=@work_sheets[sheet]
+      work_sheet=@work_sheet
       p "work sheet = #{work_sheet}"
       count=0
       if data!=nil and data.size>0
@@ -85,4 +90,29 @@ module ArchUtil
 
 
   end # end class ExcelConduit
+
+  def ArchUtil.get_excel_col_index(x)
+    x-=1
+    alphabets=[*?a..?z]
+    prefix=(x/alphabets.size).floor-1
+
+    index=''
+    if prefix>=0
+      index+=alphabets[prefix]
+      prefix-=alphabets.size
+      while prefix>alphabets.size
+        index+=alphabets[prefix]
+        prefix-=alphabets.size
+      end
+    end
+    suffix=x%alphabets.size
+    index+=alphabets[suffix]
+    return index
+  end
+
+  def ArchUtil.get_excel_cell_index(x,y)
+
+    index=self.get_excel_col_index(x).to_s+y.to_s
+    return index
+  end
 end
