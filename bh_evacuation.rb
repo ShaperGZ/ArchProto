@@ -79,10 +79,28 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     @str_cores=[]
   end
 
+  def grid_position(position)
+    un_width=@host.attr("un_width")
+    bh_bays=@host.get_updator_by_type(BH_Bays)
+    grid=bh_bays.basic_floor_grid
+    p "bh_bays=#{bh_bays} grid=#{grid}"
+    for cluster in grid.clusters.values
+      p "cluster=#{cluster.name} units count=#{cluster.units.size}"
+      for unit in cluster.units
+        d=unit.geometry.position.distance(position)
+        p " >>>>> NOT FOUND d=#{d} position=#{position} return:#{unit.geometry.position}"
+        if d<(un_width)
+          p " >>>>> FOUND d=#{d} position=#{position} return:#{unit.geometry.position}"
+          return unit.geometry.position
+        end
+      end
+    end
+    return position
+  end
+
   def invalidate()
 
     bh_composition=@host.get_updator_by_type(BH_Apt_Composition)
-
 
     # this gets dict list of bool
     # keys are:["double","L-shape","U-shape","O-shape"]
@@ -116,7 +134,7 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     end
 
 
-
+    # p "ordered_cs #{ordered_cs}"
     # 2 add all corridors to segments[] to create a poly
     # however, c1 must be trimed in 'L','U',
     # c4 will be trimed in 'O' format
@@ -156,6 +174,8 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
       # @abstract_geometries<<gen_bays(g)
     end
 
+    # p "segments=#{segments}"
+    segments.each{|s| p s.length}
     poly=Evacuation::Poly.new(segments)
     length=poly.length.to_m
     numE=(length/30).ceil
@@ -176,6 +196,7 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
       g=poly.geo_at_dist(dist)
       if g.is_a? MeshUtil::AttrGeo
         # p "added g.pos=#{g.position} dist=#{dist}"
+        # g.position=grid_position(g.position)
         g.position+=h_offset
         @abstract_geometries<<g
       end
@@ -249,9 +270,6 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
 
   end
 
-  def create_abs_from_def(definition)
-
-  end
 
   def convert_definition_to_absgeo(definition,h)
     absgeos=[]

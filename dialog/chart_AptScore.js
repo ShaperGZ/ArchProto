@@ -240,7 +240,6 @@ class ChartAptScore{
     }
 }
 
-
 IDP.set_data_value=function(data,i,v){
     var orgVal=data[i].value
     if (v>=orgVal)
@@ -249,8 +248,6 @@ IDP.set_data_value=function(data,i,v){
         data[i].flag=false;
     data[i].value=v;
 }
-
-
 
 IDP.create_svg=function(width=300,height=300){
     var svg=d3.select("body").select("div").append("svg")

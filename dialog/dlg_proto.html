@@ -50,7 +50,26 @@
                 </th>
                 <!--view modes-->
                 <th>
-                    <table id="view_mode_bt_container">
+                    <!--<table id="view_mode_bt_container">-->
+                    <!--</table>-->
+                    <table>
+                        <tb>
+                            <tr>
+                                <td><span class="contents" id="itsp_bd_width">bd_w</span></td>
+                                <td><span class="contents" id="itsp_bd_depth">bd_d</span></td>
+                                <td><span class="contents" id="itsp_bd_height">bd_h</span></td>
+                                <td><span class="contents" id="itsp_un_width">un_w</span></td>
+                                <td><span class="contents" id="itsp_un_depth">un_d</span></td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" id="ittb_bd_width" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_bd_depth" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_bd_height" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_un_width" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_un_depth" style="width: 20px"></td>
+
+                            </tr>
+                        </tb>
                     </table>
                 </th>
             </tr>
@@ -212,6 +231,12 @@
         strs.forEach(function(s){
             kv=s.split("=>");
             data.push({"name":kv[0],"value":kv[1]});
+
+            id="ittb_"+kv[0]
+            dom=document.getElementById(id)
+            if (dom!=null){
+                dom.value=kv[1]
+            }
         });
 
 
@@ -390,6 +415,48 @@
         window.location=msg;
     }
 
+    function listen_to_dimension_inputs()
+    {
+        ids=["ittb_bd_width","ittb_bd_depth","ittb_bd_height","ittb_un_width","ittb_un_depth"]
+        ids.forEach(function(id){
+            var input=document.getElementById(id)
+            input.className="contents"
+            input.size=1;
+            // input.min=0.1;
+            // input.max=1.9;
+            input.step=0.1;
+            input.onkeydown=function(key){
+
+                if (key.keyCode == "13"){
+                    var val= parseFloat(input.value)
+                    bbid=id.replace("ittb","tb")
+                    var dom=document.getElementById(bbid)
+                    dom.value=val
+                    set_gp_attributes_on_value_entry(0,0);
+                }
+            }
+            input.addEventListener("wheel",function(e){
+                var val= parseFloat(input.value)
+
+                var offset=0.5
+                if (id.indexOf("bd")>=0){
+                    offset=3
+                }
+
+
+                if(e.wheelDelta>0)
+                    val+=offset;
+                else if(e.wheelDelta<0)
+                    val-=offset;
+                input.value=val;
+                bbid=id.replace("ittb","tb")
+                var dom=document.getElementById(bbid)
+                dom.value=val
+                set_gp_attributes_on_value_entry(0,0);
+            });
+        })
+    }
+
     // tabeBBContainer=document.getElementById("attribute_table");
     // tableBB=new TableSpanInput(tableBBContainer);
     previousData=null;
@@ -397,7 +464,8 @@
     tableBB.onValueChange=set_gp_attributes_on_value_entry;
 
     gen_score_ratio_sliders()
-    gen_view_mode_buttons()
+    listen_to_dimension_inputs()
+    // gen_view_mode_buttons()
 
 
 </script>

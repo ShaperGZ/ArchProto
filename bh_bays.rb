@@ -28,7 +28,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
     generate_floors()
 
     # 3(temp) add_model
-    add_model()
+    # add_model()
   end
 
   # def invalidate2()
@@ -175,7 +175,14 @@ class BH_Bays < Arch::BlockUpdateBehaviour
       composit=MeshUtil::AttrComposit.new()
       for cluster in tf.clusters.values
         for unit in cluster.units
-          composit.add(unit.geometry.mesh)
+          # p "cluster:#{cluster.name} unit sizex:#{unit.geometry.size[0].to_m}"
+          begin
+            composit.add(unit.geometry.mesh)
+          rescue
+            p  unit.geometry.size
+            p $ERROR_INFO
+            # raise ScriptError
+          end
         end
       end
       definition.entities.clear!
@@ -229,7 +236,7 @@ class BH_Bays < Arch::BlockUpdateBehaviour
         end
 
         ins=@floor_instances[count]
-        p "count:#{count} floor_instances.size:#{@floor_instances.size} ins:#{ins}"
+        # p "count:#{count} floor_instances.size:#{@floor_instances.size} ins:#{ins}"
         # transform the new instance vertically
         # instances should ne positioned at (0,0,h)
         tr=Geom::Transformation.translation([0,0,h.m])

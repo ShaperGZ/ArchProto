@@ -49,8 +49,9 @@ class Proto_Apt < BuildingBlock
 
     @updators << BH_Dimension.new(g,self)
     @updators << @g_composition=BH_Apt_Composition.new(g,self)
-    @updators << @g_evacuation=BH_Evacuation.new(g,self)
     @updators << BH_Bays.new(g,self)
+    @updators << @g_evacuation=BH_Evacuation.new(g,self)
+    @updators << BH_Units.new(g,self)
     @updators << BH_Orientation.new(g,self)
     @updators << @g_area=BH_Apt_Area.new(g,self)
     @updators << BH_Load_component.new(g,self)

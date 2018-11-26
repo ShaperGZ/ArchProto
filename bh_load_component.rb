@@ -59,12 +59,13 @@ class BH_Load_component< Arch::BlockUpdateBehaviour
     # 1.2 update or add missing containers
     # here has to incorporate add with update
     # because adding an instance requires a proper definition
+    p "========= update isntance ========"
     inst_count=@instances.size
     for i in 0..@creation_queue.size-1
       arr=@creation_queue[i]
       abs=arr[0]
       definition=arr[1]
-      p "definition is #{definition.class}"
+      # p "definition is #{definition.class}"
       if i>=@instances.size
         ins=@concrete_geometries[0].entities.add_instance(definition,Geom::Transformation.new)
         @instances<<ins
@@ -83,24 +84,82 @@ class BH_Load_component< Arch::BlockUpdateBehaviour
     end
   end
 
+  def grid_position(position)
 
+    un_width=@host.attr("un_width")
+    bh_bays=@host.get_updator_by_type(BH_Bays)
+    grid=bh_bays.basic_floor_grid
+    closest=un_width.m
+    closestpos=nil
+    # p "bh_bays=#{bh_bays} grid=#{grid}"
+    for cluster in grid.clusters.values
+      # p "cluster=#{cluster.name} units count=#{cluster.units.size}"
+      for unit in cluster.units
+        refpos=unit.geometry.position.clone
+        vect=unit.geometry.vects[1].clone
+        vect.length=unit.geometry.size[1]
+        nrefpos=refpos+vect
+        nrefpos[2]=position[2]
+        # p "cluster=#{cluster.name} refpos=#{refpos} vect=#{vect} nrefpos=#{nrefpos}"
+        d=nrefpos.distance(position)
+        # p " >>>>> NOT FOUND d=#{d} position=#{position} return:#{nrefpos}"
+        if d<closest
+          closest = d
+          closestpos=nrefpos.clone
+        end
+        # if d<(un_width.m)
+        #   p " >>>>> FOUND d=#{d} position=#{position} return:#{nrefpos}"
+        #   return nrefpos
+        # end
+      end
+    end
+    return closestpos if closestpos!=nil
+    return position
+  end
 
   def load_def_evac
     bh_evac=@host.get_updator_by_type(BH_Evacuation)
     str_cores=bh_evac.str_cores
     lft_cores=bh_evac.lft_cores
     bd_height=@host.attr("bd_height")
+    crd_width=2.m
 
     # load skp definitions for each cores
     str_def=ArchComponents.get_definition('core_apt_str.skp')
     lft_def=ArchComponents.get_definition('core_apt_lft_L3.skp')
 
     for c in str_cores
-      creation_queue<<[c,str_def]
+      # p "c.position=#{c.position}"
+      vecty=c.vects[1].clone
+      vectx=c.vects[0].clone
+      vecty.length=crd_width
+      # p "pre add pos=#{c.position} post:#{c.position+vecty}"
+
+      minors_length=str_def.bounds.min[0]
+      vectx.length=minors_length
+      # align with edge not pos
+      c.position=grid_position(c.position+vecty-vectx)
+      # correct the pos from the edge
+      c.position += vectx
+
+      @creation_queue<<[c,str_def]
     end
 
     for c in lft_cores
-      creation_queue<<[c,lft_def]
+      # p "c.position=#{c.position}"
+      vecty=c.vects[1].clone
+      vectx=c.vects[0].clone
+      vecty.length=crd_width
+      # p "pre add pos=#{c.position} post:#{c.position+vecty}"
+
+      minors_length=str_def.bounds.min[0]
+      vectx.length=minors_length
+      # align with edge not pos
+      c.position=grid_position(c.position+vecty-vectx)
+      # correct the pos from the edge
+      c.position += vectx
+
+      @creation_queue<<[c,lft_def]
     end
   end
 
