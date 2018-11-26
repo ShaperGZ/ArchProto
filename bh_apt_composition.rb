@@ -53,7 +53,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
     t1=Time.now
     gen_composition
-    _add_all_abs_to_one
+    # _add_all_abs_to_one
     t2=Time.now
     p "Bh_Apt_Composition.invalidate took #{t2-t1} seconds"
 
