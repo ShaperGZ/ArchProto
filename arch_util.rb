@@ -69,6 +69,7 @@ module ArchUtil
 
   def ArchUtil.point_in_plane_front(point,plane)
     point = Geom::Point3d.new(point) if point.is_a? Array
+    # p "plane:#{plane}"
     cp=point.project_to_plane(plane)
     dist = point.distance_to_plane(plane)
     return false if dist == 0.0

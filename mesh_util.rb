@@ -169,11 +169,49 @@ module MeshUtil
 
   class AttrComposit < AttrGeo
     attr_accessor :meshes
+    attr_accessor :base_vect
     def initialize(meshes=nil)
       super()
       @mesh=Geom::PolygonMesh.new
+      # composit takes pure mesh to compose a geometry
+      # therefore it doesn't have an orientation
+      # will give an orientation manually to calculating bounding box / size
+      # default value for this base_vect is (1,0,0)
+      @base_vect=Geom::Vector3d.new(1,0,0)
+      # set base_rotation= will change the base_vect
+      @base_rotation=0
+
       add(meshes) if meshes.is_a? Geom::PolygonMesh
       add_range(meshes) if meshes.is_a? Array
+    end
+
+    def base_vect
+      return @base_vect
+    end
+
+    def base_rotation
+      return @base_rotation
+    end
+
+    def base_vect=(val)
+      @base_vect=val
+    end
+
+    def offet_mesh(param)
+      tr=nil
+      if param.class == Geom::Vector3d
+        tr=Geom::Transformation.translation(vect.to_a)
+      elsif param.is_a? Geom::Transformation
+        tr=param
+      else
+        p "offset mesh failed, param must = vector3d or transform"
+      end
+      @mesh.transform! tr if tr!=nil
+    end
+
+    def base_rotation=(val)
+      rot=Geom::Transformation.rotation([0,0,0],[0,0,1],val.degrees)
+      @base_vect*=rot
     end
 
     def add_box(pos,size,rot)
@@ -184,12 +222,16 @@ module MeshUtil
       @mesh.add_polygon(pts)
     end
 
-    def add(m)
+    def add(m,basept=Geom::Point3d.new(0,0,0))
+      offset=Geom::Vector3d.new(*basept)
+      offset.length*=-1 if offset.length>0
+      tr=Geom::Transformation.translation(offset.to_a)
+      # m.transform! tr
       for f in m.polygons
         nf=[]
         for i in f
           p= m.points[i-1]
-          nf<<p
+          nf<<tr* p
         end
         @mesh.add_polygon(nf)
       end
@@ -211,9 +253,40 @@ module MeshUtil
       end
     end
 
+    def size=(val)
+      orgsize=size()
+      scale=[1,1,1]
+      for i in 0..2
+        scale[i]=val[i]/orgsize[i]
+      end
+      m_scale=ArchUtil.scale_3d()
+
+    end
+
+    def vects
+      vx=@base_vect.normalize
+      vz=Geom::Vector3d.new(0,0,1)
+      vy=vz.cross(vx)
+      vz=vx.cross(vy)
+      return [vx,vy,vz]
+    end
+
     def size
+      rot=nil
+      if @base_vect.to_a != [1,0,0]
+        angle=@base_vect.angle_between(Geom::Vector3d.new(1,0,0))
+        rot=Geom::Transformation.rotation([0,0,0],[0,0,1],-angle)
+      end
+
       bbox=Geom::BoundingBox.new
-      bbox.add(@mesh.points)
+      pts=@mesh.points
+      if rot!=nil
+        pts=[]
+        for p in @mesh.points
+          pts<<rot * p
+        end
+      end
+      bbox.add(pts)
       min=bbox.min
       max=bbox.max
       size=[1,1,1]
@@ -227,7 +300,9 @@ module MeshUtil
       out_mesh=MeshUtil.clone_mesh @mesh
       trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
       trans_translate=Geom::Transformation.translation(@position)
-      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
+      base_rotation=@base_vect.angle_between(Geom::Vector3d.new(1,0,0))
+      actual_rotation=@rotation.degrees-base_rotation
+      trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],actual_rotation)
       out_mesh.transform! trans_reflect
       out_mesh.transform! trans_rotate
       out_mesh.transform! trans_translate
@@ -434,6 +509,13 @@ module MeshUtil
   end
 
   def MeshUtil.add_model(mesh,parent=nil,smooth=0)
+    if mesh.is_a? Array
+      for i in 0..mesh.size-1
+        m=mesh[i]
+        MeshUtil.add_model(m,parent,smooth)
+      end
+    end
+    mesh=mesh.mesh if mesh.is_a? MeshUtil::AttrGeo
     parent=Sketchup.active_model.entities.add_group if parent==nil
     parent.entities.add_faces_from_mesh(mesh,smooth)
     return parent
@@ -525,7 +607,12 @@ module MeshUtil
     MeshUtil.add_poly_to_mesh_faces(tpts,mesh)
     return mesh
   end
+
   def MeshUtil.split_mesh(plane,mesh,cap=true)
+    plane[0]=Geom::Point3d.new(*plane[0]) if plane[0].is_a? Array
+    normal=Geom::Vector3d.new(*plane[1])
+    normal.length=1 if normal.length!=1
+    plane[1]=normal
     left=[]
     right=[]
     xedges=[]
@@ -579,19 +666,39 @@ module MeshUtil
       xedge.reverse! if reverse
       xedges<<xedge if xedge.size>=2
     end
-    cutline=MeshUtil.sort_xedges(xedges)
+    begin
+      # p "pre sort xedges=#{xedges}"
+      cutline=[]
+      cutline=MeshUtil.sort_xedges(xedges) if xedges.size>=3
+    rescue
+      # p "post sort xedges=#{cutline}"
+    end
 
-    if cap
+    if cap and cutline.size>=3
       left_cap=cutline.clone.reverse!
       right_cap=cutline.clone
       left<<left_cap
       right<<right_cap
     end
 
-    if left.size==0 or right.size==0
-      cutline=null
+    if left.size==0 or right.size==0 or cutline.size<3
+      cutline=nil
     end
-    return left,right,cutline
+
+    mesh_left=Geom::PolygonMesh.new
+    mesh_right=Geom::PolygonMesh.new
+
+    # left mesh
+    for f in left
+      mesh_left.add_polygon(f) if f.size>=3
+    end
+
+    # right mesh
+    for f in right
+      mesh_right.add_polygon(f) if f.size>=3
+    end
+
+    return mesh_left,mesh_right,cutline
   end
 
   def MeshUtil.sort_xedges(xedges)
@@ -615,6 +722,22 @@ module MeshUtil
       end
     end
     return sorted
+  end
+
+  def MeshUtil.split_geometry(plane,geometry)
+    left,right,cap=MeshUtil.split_mesh(plane,geometry.mesh,true)
+    geo_left=MeshUtil::AttrComposit.new()
+    geo_right=MeshUtil::AttrComposit.new()
+
+    geo_left.add left
+    geo_left.rotation=geometry.rotation
+    geo_left.base_vect=geometry.vects[0]
+
+
+    geo_right.add right
+    geo_right.rotation=geometry.rotation
+    geo_left.base_vect=geometry.vects[0]
+    return geo_left,geo_right
   end
 
   def MeshUtil.create_from_definition(definition)
