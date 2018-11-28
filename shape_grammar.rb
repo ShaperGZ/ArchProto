@@ -17,7 +17,7 @@ module SG
     attr_accessor :in_names
     attr_accessor :out_names
     attr_accessor :params
-
+    attr_accessor :name
 
     def initialize()
       @container=nil
@@ -27,6 +27,7 @@ module SG
       @in_names=[]
       @out_names=[]
       @params=nil
+      @name='UNRule'
     end
 
     def execute()
@@ -43,12 +44,46 @@ module SG
       end
     end
 
+
+    def Rule._extract_geo(g)
+      if g.is_a? Sketchup::Entity
+        t=g.transformation
+        ms=ArchUtil.Transformation_scale_3d([t.xscale,t.yscale,t.zscale])
+        mesh=Geom::PolygonMesh.new()
+        p "=============="
+        g.entities.each{|e|
+          if e.is_a? Sketchup::Face
+            verts=e.vertices
+            pts=[]
+            e.vertices.each{|v|
+              pp=v.position.clone
+              p=ms*v.position
+              # p "#{pp} ---> #{p} "
+              p "#{pp[0].to_m} -> #{p[0].to_m}"
+              pts<<p
+            }
+            mesh.add_polygon(pts)
+          end
+        }
+        p '---------------'
+        # localbbox=Geom::BoundingBox.new()
+        # localbbox.add mesh.points
+        # mesh.points.each{|pt| p pt[0].to_m}
+        # trans=g.transformation
+        # mesh.transform! trans
+        geo=MeshUtil::AttrComposit.new
+        geo.add mesh
+        geo.position=g.bounds.min
+        return geo
+      elsif g.is_a? MeshUtil::AttrGeo
+        p "->attrGeo"
+        return g
+      end
+      p "shape_grammar.rb _extract_geo(g) g must be a Ssetchup::Entity or MeshUtil::AttrGeo"
+      raise ScriptError
+
+    end
   end
-
-
-
-
-
 
   def SG._modify_divs(divs,ttl,repeat=Repeat::None)
     # modify the given div array base on the actual total length to be divided and repeat pattern
@@ -89,50 +124,60 @@ module SG
     ttl=geometry.size[axis].to_m
     basevect=geometry.vects[0]
 
-    p "pre modify divs=#{divs}"
+    # p "pre modify divs=#{divs}"
     divs=SG._modify_divs(divs,ttl,repeat)
     normal=geometry.vects[axis]
     mesh=geometry.mesh
-    p "post modify divs=#{divs}"
+    inverse=Geom::Vector3d.new(*geometry.position)
+    inverse.reverse!
+    mesh.transform! Geom::Transformation.translation(inverse)
+    # p "post modify divs=#{divs}"
     geos=[]
     current=0
     for i in 0..divs.size-1
       d=divs[i]+current
       offset_vect=Geom::Vector3d.new(*normal)
       offset_vect.length=d.m
-      p "d=#{offset_vect.length.to_m}m"
-      pos=Geom::Point3d.new(*geometry.position)
-      pos+=offset_vect
+      # p "d=#{offset_vect.length.to_m}m"
+      pos=Geom::Point3d.new(*offset_vect)
+      # pos=geometry.position+offset_vect
       pln=[pos,normal]
-      p "mesh=#{mesh} size=#{mesh.points.size}"
+      p "d=#{d} pos.x=#{pos[0].to_m}"
+      # p "mesh=#{mesh} size=#{mesh.points.size}"
       left,right,cap=MeshUtil.split_mesh(pln,mesh,true)
-      p "left=#{left}, right=#{right}"
+      # p "left=#{left}, right=#{right}"
 
       mesh=right
       current=d
 
       geo=MeshUtil::AttrComposit.new()
-      geo.add left,geometry.position
-      geo.position=geometry.position
-      geo.reflection=geometry.reflection
-      geo.rotation=geometry.rotation
-      geo.base_vect=basevect
-      geos<<geo
-
-      if i==divs.size-1 and right.points.size>=3
-        geo=MeshUtil::AttrComposit.new()
-        geo.add right,pos
-        geo.position=pos
+      if true
+      # if left.points.size>=4
+      #   geo.add left, geometry.position
+        geo.add left
+        geo.position=geometry.position
         geo.reflection=geometry.reflection
         geo.rotation=geometry.rotation
         geo.base_vect=basevect
         geos<<geo
       end
+
+      if i==divs.size-1 and right.points.size>=3
+        geo=MeshUtil::AttrComposit.new()
+        if true
+        # if right.points.size>=4
+        #   geo.add right,pos
+          geo.add right, pos
+          geo.position=geometry.position+offset_vect
+          geo.reflection=geometry.reflection
+          geo.rotation=geometry.rotation
+          geo.base_vect=basevect
+          geos<<geo
+        end
+      end
     end
     return geos
   end
-
-
 
   def SG.split_ratio(geometry,divs,axis=0,repeat=Repeat::None)
     ttl=geometry.size[axis].to_m
@@ -141,62 +186,112 @@ module SG
     end
     SG.split_length(geometry,divs,axis,repeat)
   end
-
-  def SG.split(geometry,str,axis=0)
-    divs=str.split(',')
-    ttl=geometry.size[axis].to_m
-    divs=[]
-
-    #sample str: [6,5,3r,3.5r,4,2.5]
-    #
-  end
-
 end
 
 module SGRules
 
   class Grammar < SG::Rule
     attr_accessor :rules
+    attr_accessor :container
     def initialize()
       super()
+      @container=nil
       @rules=[]
+      @name='UNGrammar'
     end
+    def Grammar.create(geos=nil)
+      if geos==nil
+        geos=[]
+        gps=Sketchup.active_model.selection
+        for g in gps
+          geos<<g
+        end
+      end
+
+      grammar=Grammar.new()
+      grammar.inputs+=geos
+      return grammar
+    end
+
     def add(rule)
       @rules<<rule
     end
+
     def execute(start=0)
       last_output=[]
       for i in start..@rules.size-1
         rule=@rules[i]
-        if start==0
+        if i==0
           rule.inputs=inputs
         else
-          rule.inputs=@rules[i-1].outputs
+          rule.inputs=last_output
         end
         rule.execute()
+        p "exe[#{i}]#{rule.name} ins:#{rule.inputs.size} outs:#{rule.outputs.size}"
+        rule.outputs.each{|o|
+          p "o.name=#{o.name}"
+        }
         last_output=rule.outputs
       end
       @outputs=last_output
     end
 
+    def update_model()
+      if @container==nil
+        @container=Sketchup.active_model.entities.add_group()
+      end
+
+      @container.entities.clear!
+      MeshUtil.add_geos_to_model(@outputs,@container,0)
+    end
   end
 
   class Split < SG::Rule
     attr_accessor :axis
-    def initialize(divs,in_names,out_names,axis,repeat=Repeat::None)
+    def initialize(in_names,out_names,divs,axis=0,repeat=Repeat::None)
       super()
       @axis=axis
-      @params=divs
-      @in_names=in_names
-      @out_names=out_names
+      # sample 1 dive input : 'r0.3,0.4'
+      #               output: param:[0.3,0.4] mode:'ratio'
+      #               ratio mode starts with 'r'
+      #
+      # sample 2 dive input : '30,40'
+      #               output: param:[30,40] mode:'length'
+      #
+      # mode can be 'length' or 'ratio'
+      @params,@mode=_interpret_divs(divs)
+      @in_names=in_names.split(',')
+      @out_names=out_names.split(',')
+      @repeat=repeat
+      @axis=axis
+      @name='Split'
+    end
+
+    def mode()
+      return @mode
     end
 
     def execute()
-      return if geos==nil or geos.size==0 or @params=nil
+      return if @inputs==nil or @inputs.size==0 or @params==nil
+      repeat=@repeat
       @outputs=[]
-      for g in geos
-        if @in_names.include? g.name
-          geos=SG.split_length(g,@params,axis,repeat)
+      count=0
+      for g in @inputs
+        # p "<g.class=#{g.class} g.name=#{g.name}"
+        g=self._extract_geo(g)
+        # p ">g.class=#{g.class} g.name=#{g.name}"
+        # p "[#{count}]:#{g.mesh.points}"
+        # p "#{g.class}, #{g.name}: pos:#{g.position} size:#{g.size}"
+        if @in_names.include? g.name or @in_names.size==0
+          if @mode=='length'
+            geos=SG.split_length(g,@params,@axis,repeat)
+          elsif @mode =='ratio'
+            # p "split ratio divs=#{@params}"
+            geos=SG.split_ratio(g,@params,@axis,repeat)
+          else
+            p "undefined mode:#{@mode}"
+            raise ScriptError
+          end
           @outputs+=geos if geos!=nil and geos.size>0
         else
           @unused<<g
@@ -205,8 +300,97 @@ module SGRules
       assign_names()
       @outputs+=@unused
     end
+
+    def _interpret_divs(strdivs)
+      divs=[]
+      mode='length'
+      if strdivs[0]=='r'
+        mode='ratio'
+        strdivs=strdivs[1..-1]
+      end
+
+      trunks=strdivs.split(',')
+      trunks.each{|s|
+        divs<<s.to_f
+      }
+      return divs,mode
+    end
+
+
+  end
+end
+
+class SGInvalidator
+  attr_accessor :states
+  attr_accessor :grammars
+  attr_accessor :subjects
+  def initialize()
+    @subjects=[]
+    @states=Hash.new
+    @grammars=[]
   end
 
+  def clear_grammars()
+    @grammars=[]
+  end
+  def add_grammar(g)
+    @grammars<<g
+  end
 
+  def add(ent)
+    @states[ent]={}
+  end
 
+  def add_range(ents)
+    for e in ents
+      add(e)
+    end
+  end
+
+  def invalidate()
+    sels=Sketchup.active_model.selection.to_a
+    for s in sels
+      if is_ent_invalidated(s)
+        p "sg invalidator"
+        for g in @grammars
+          g.execute if g.inputs.include? s
+        end
+      end
+    end # for s
+  end
+
+  def is_ent_invalidated(ent)
+    return false if @states.key? ent
+    t=ent.transformation
+
+    if  t.xscale!=@states[ent]['xscale'] or
+        t.yscale!=@states[ent]['yscale'] or
+        t.zscale!=@states[ent]['zscale']
+      flag=true
+    else
+      flag=false
+    end
+    p "flag=#{flag}"
+    @states[ent]['xscale']=t.xscale
+    @states[ent]['yscale']=t.yscale
+    @states[ent]['zscale']=t.zscale
+
+    return flag
+  end
+
+end
+
+def sgtest
+  # $sgi=SGInvalidator.new
+  # $custom_invalidator=[$sgi]
+
+  $g=SGRules::Grammar.create()
+  $g.add(SGRules::Split.new('','A,B','r0.3,0.4'))
+  # $g.add(SGRules::Split.new('B','C,B','r0.5',1))
+  $g.execute()
+  $g.update_model()
+
+  # $sgi.add_grammar $g
+  # $sgi.add_range($g.inputs)
+  nil
 end

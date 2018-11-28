@@ -1,13 +1,14 @@
 
 # $note=Sketchup.active_model.add_note("note",0.05,0.05) if !$note or !$note.valid?
 
-
+$custom_invalidator=[] if $custom_invalidator==nil
 
 module Geometry_Monitor
   @@l_sel=[]
   @@last_states={}
   @@l_camera_pos=nil
   @@l_camera_fov=nil
+
 
   def Geometry_Monitor.reset_timer()
     $note=Sketchup.active_model.add_note("note",0.05,0.05) if !$note or !$note.valid?
@@ -21,6 +22,9 @@ module Geometry_Monitor
     $timer=UI.start_timer(0.1,true){
       begin
         self.default_action
+        for c in $custom_invalidator
+          c.invalidate
+        end
       rescue
         p $!.message
         p $!.backtrace

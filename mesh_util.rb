@@ -286,6 +286,7 @@ module MeshUtil
           pts<<rot * p
         end
       end
+      p "!!!! pts = #{pts}"
       bbox.add(pts)
       min=bbox.min
       max=bbox.max
