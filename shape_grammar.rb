@@ -59,7 +59,7 @@ module SG
               pp=v.position.clone
               p=ms*v.position
               # p "#{pp} ---> #{p} "
-              p "#{pp[0].to_m} -> #{p[0].to_m}"
+              # p "#{pp[0].to_m} -> #{p[0].to_m}"
               pts<<p
             }
             mesh.add_polygon(pts)
@@ -73,7 +73,7 @@ module SG
         # mesh.transform! trans
         geo=MeshUtil::AttrComposit.new
         geo.add mesh
-        geo.position=g.bounds.min
+        geo.position=g.transformation.origin
         return geo
       elsif g.is_a? MeshUtil::AttrGeo
         p "->attrGeo"
@@ -278,7 +278,7 @@ module SGRules
       count=0
       for g in @inputs
         # p "<g.class=#{g.class} g.name=#{g.name}"
-        g=self._extract_geo(g)
+        g=SG::Rule._extract_geo(g)
         # p ">g.class=#{g.class} g.name=#{g.name}"
         # p "[#{count}]:#{g.mesh.points}"
         # p "#{g.class}, #{g.name}: pos:#{g.position} size:#{g.size}"
@@ -349,14 +349,21 @@ class SGInvalidator
 
   def invalidate()
     sels=Sketchup.active_model.selection.to_a
+    invalidated_grammars=[]
     for s in sels
       if is_ent_invalidated(s)
         p "sg invalidator"
         for g in @grammars
-          g.execute if g.inputs.include? s
+          invalidated_grammars<<g if g.inputs.include? s and  !invalidated_grammars.include? g
+          # g.execute if g.inputs.include? s
         end
       end
     end # for s
+
+    for g in invalidated_grammars
+      g.execute
+      g.add_model
+    end
   end
 
   def is_ent_invalidated(ent)
@@ -381,16 +388,16 @@ class SGInvalidator
 end
 
 def sgtest
-  # $sgi=SGInvalidator.new
-  # $custom_invalidator=[$sgi]
+  $sgi=SGInvalidator.new
+  $custom_invalidator=[$sgi]
 
   $g=SGRules::Grammar.create()
   $g.add(SGRules::Split.new('','A,B','r0.3,0.4'))
-  # $g.add(SGRules::Split.new('B','C,B','r0.5',1))
+  $g.add(SGRules::Split.new('B','C,B','r0.5',1))
   $g.execute()
   $g.update_model()
 
-  # $sgi.add_grammar $g
-  # $sgi.add_range($g.inputs)
+  $sgi.add_grammar $g
+  $sgi.add_range($g.inputs)
   nil
 end

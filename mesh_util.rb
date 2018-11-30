@@ -76,6 +76,9 @@ module MeshUtil
       _set_vects
     end
 
+    def add_model(container=nil)
+      MeshUtil.add_model(mesh(),container)
+    end
 
     def vects
       out_vects=[]
