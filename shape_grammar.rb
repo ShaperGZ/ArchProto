@@ -47,41 +47,9 @@ module SG
 
     def Rule._extract_geo(g)
       if g.is_a? Sketchup::Entity
-        t=g.transformation
-        ms=ArchUtil.Transformation_scale_3d([t.xscale,t.yscale,t.zscale])
-        mesh=Geom::PolygonMesh.new()
-        p "=============="
-        g.entities.each{|e|
-          if e.is_a? Sketchup::Face
-            verts=e.vertices
-            pts=[]
-            e.vertices.each{|v|
-              pp=v.position.clone
-              p=ms*v.position
-              # p "#{pp} ---> #{p} "
-              # p "#{pp[0].to_m} -> #{p[0].to_m}"
-              pts<<p
-            }
-            mesh.add_polygon(pts)
-          end
-        }
-        p '---------------'
-        # localbbox=Geom::BoundingBox.new()
-        # localbbox.add mesh.points
-        # mesh.points.each{|pt| p pt[0].to_m}
-        # trans=g.transformation
-        # mesh.transform! trans
-        geo=MeshUtil::AttrComposit.new
-        geo.add mesh
-        geo.position=g.transformation.origin
-        return geo
-      elsif g.is_a? MeshUtil::AttrGeo
-        p "->attrGeo"
-        return g
+        g=g.extract_geo
       end
-      p "shape_grammar.rb _extract_geo(g) g must be a Ssetchup::Entity or MeshUtil::AttrGeo"
-      raise ScriptError
-
+      return g
     end
   end
 
@@ -142,7 +110,7 @@ module SG
       pos=Geom::Point3d.new(*offset_vect)
       # pos=geometry.position+offset_vect
       pln=[pos,normal]
-      p "d=#{d} pos.x=#{pos[0].to_m}"
+      # p "d=#{d} pos.x=#{pos[0].to_m}"
       # p "mesh=#{mesh} size=#{mesh.points.size}"
       left,right,cap=MeshUtil.split_mesh(pln,mesh,true)
       # p "left=#{left}, right=#{right}"
@@ -204,7 +172,7 @@ module SGRules
         geos=[]
         gps=Sketchup.active_model.selection
         for g in gps
-          geos<<g
+          geos<<g if g.is_a? Sketchup::Group
         end
       end
 
@@ -227,9 +195,9 @@ module SGRules
           rule.inputs=last_output
         end
         rule.execute()
-        p "exe[#{i}]#{rule.name} ins:#{rule.inputs.size} outs:#{rule.outputs.size}"
+        # p "exe[#{i}]#{rule.name} ins:#{rule.inputs.size} outs:#{rule.outputs.size}"
         rule.outputs.each{|o|
-          p "o.name=#{o.name}"
+          # p "o.name=#{o.name}"
         }
         last_output=rule.outputs
       end
@@ -277,26 +245,27 @@ module SGRules
       @outputs=[]
       count=0
       for g in @inputs
-        # p "<g.class=#{g.class} g.name=#{g.name}"
         g=SG::Rule._extract_geo(g)
-        # p ">g.class=#{g.class} g.name=#{g.name}"
-        # p "[#{count}]:#{g.mesh.points}"
-        # p "#{g.class}, #{g.name}: pos:#{g.position} size:#{g.size}"
         if @in_names.include? g.name or @in_names.size==0
           if @mode=='length'
-            geos=SG.split_length(g,@params,@axis,repeat)
+            geos=SG.split_length(g,@params.clone,@axis,repeat)
           elsif @mode =='ratio'
             # p "split ratio divs=#{@params}"
-            geos=SG.split_ratio(g,@params,@axis,repeat)
+            geos=SG.split_ratio(g,@params.clone,@axis,repeat)
           else
             p "undefined mode:#{@mode}"
             raise ScriptError
           end
+
+          # p "g:#{g.name} is splited into #{geos.size} geos"
           @outputs+=geos if geos!=nil and geos.size>0
         else
           @unused<<g
         end
+        # p "[#{count}]: g.class=#{g.class} g.name=#{g.name} outs.size=#{@outputs.size} @unused.size=#{@unused}"
+        count+=1
       end
+
       assign_names()
       @outputs+=@unused
     end
@@ -352,7 +321,7 @@ class SGInvalidator
     invalidated_grammars=[]
     for s in sels
       if is_ent_invalidated(s)
-        p "sg invalidator"
+        # p "sg invalidator"
         for g in @grammars
           invalidated_grammars<<g if g.inputs.include? s and  !invalidated_grammars.include? g
           # g.execute if g.inputs.include? s
@@ -377,7 +346,7 @@ class SGInvalidator
     else
       flag=false
     end
-    p "flag=#{flag}"
+    # p "flag=#{flag}"
     @states[ent]['xscale']=t.xscale
     @states[ent]['yscale']=t.yscale
     @states[ent]['zscale']=t.zscale
@@ -387,6 +356,15 @@ class SGInvalidator
 
 end
 
+def teset_extract
+  sel=Sketchup.active_model.selection
+  geos=[]
+  for geo in geos
+
+  end
+end
+
+
 def sgtest
   $sgi=SGInvalidator.new
   $custom_invalidator=[$sgi]
@@ -394,6 +372,7 @@ def sgtest
   $g=SGRules::Grammar.create()
   $g.add(SGRules::Split.new('','A,B','r0.3,0.4'))
   $g.add(SGRules::Split.new('B','C,B','r0.5',1))
+  $g.add(SGRules::Split.new('A','A','r0.5',2))
   $g.execute()
   $g.update_model()
 

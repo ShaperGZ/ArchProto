@@ -13,6 +13,7 @@ module MeshUtil
     # attr_accessor :reflection
     attr_accessor :bounds
     attr_accessor :children
+    # attr_accessor :base_vect
 
     def initialize()
       @position=[0,0,0]
@@ -77,7 +78,8 @@ module MeshUtil
     end
 
     def add_model(container=nil)
-      MeshUtil.add_model(mesh(),container)
+      container = MeshUtil.add_model(mesh(),container)
+      return container
     end
 
     def vects
@@ -98,14 +100,20 @@ module MeshUtil
     def _set_vects()
       #TODO: vects have reflection
       xvect=Geom::Vector3d.new(1,0,0)
+      # xvect=@base_vect
       trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],@rotation.degrees)
+      # p ">>>>>> set vect >>>>>>>>"
+      # p "pre multiply matrix xvect=#{xvect} "
       xvect=trans_rotate * xvect
+      # p "post multiply matrix xvect=#{xvect}"
+
       zvect=Geom::Vector3d.new(0,0,1)
       yvect=zvect.cross xvect
       xvect.length*=@reflection[0]
       yvect.length*=@reflection[1]
 
       @vects=[xvect,yvect,zvect]
+      # p "@vects=#{@vects}"
     end
 
     def set_alignment(alignment)
@@ -172,7 +180,8 @@ module MeshUtil
 
   class AttrComposit < AttrGeo
     attr_accessor :meshes
-    attr_accessor :base_vect
+    # attr_accessor :base_vect
+    attr_accessor :scale
     def initialize(meshes=nil)
       super()
       @mesh=Geom::PolygonMesh.new
@@ -180,25 +189,25 @@ module MeshUtil
       # therefore it doesn't have an orientation
       # will give an orientation manually to calculating bounding box / size
       # default value for this base_vect is (1,0,0)
-      @base_vect=Geom::Vector3d.new(1,0,0)
+      # @base_vect=Geom::Vector3d.new(1,0,0)
       # set base_rotation= will change the base_vect
       @base_rotation=0
-
+      @scale=[1,1,1]
       add(meshes) if meshes.is_a? Geom::PolygonMesh
       add_range(meshes) if meshes.is_a? Array
     end
 
-    def base_vect
-      return @base_vect
-    end
+    # def base_vect
+    #   return @base_vect
+    # end
 
     def base_rotation
       return @base_rotation
     end
 
-    def base_vect=(val)
-      @base_vect=val
-    end
+    # def base_vect=(val)
+    #   @base_vect=val
+    # end
 
     def offet_mesh(param)
       tr=nil
@@ -256,60 +265,98 @@ module MeshUtil
       end
     end
 
+    def scale=(val)
+      #val is a scale array
+      @scale=val
+
+    end
+
     def size=(val)
+      # val is a size array
       orgsize=size()
       scale=[1,1,1]
       for i in 0..2
         scale[i]=val[i]/orgsize[i]
       end
-      m_scale=ArchUtil.scale_3d()
+      @scale=ArchUtil.Transformation_scale_3d(scale)
 
     end
 
-    def vects
-      vx=@base_vect.normalize
-      vz=Geom::Vector3d.new(0,0,1)
-      vy=vz.cross(vx)
-      vz=vx.cross(vy)
-      return [vx,vy,vz]
-    end
+    # def vects
+    #   vx=@base_vect.normalize
+    #   vz=Geom::Vector3d.new(0,0,1)
+    #   vy=vz.cross(vx)
+    #   vz=vx.cross(vy)
+    #   return [vx,vy,vz]
+    # end
 
     def size
-      rot=nil
-      if @base_vect.to_a != [1,0,0]
-        angle=@base_vect.angle_between(Geom::Vector3d.new(1,0,0))
-        rot=Geom::Transformation.rotation([0,0,0],[0,0,1],-angle)
-      end
+      # rot=nil
+      # if @base_vect.to_a != [1,0,0]
+      #   angle=@base_vect.angle_between(Geom::Vector3d.new(1,0,0))
+      #   rot=Geom::Transformation.rotation([0,0,0],[0,0,1],-angle)
+      # end
 
       bbox=Geom::BoundingBox.new
       pts=@mesh.points
-      if rot!=nil
-        pts=[]
-        for p in @mesh.points
-          pts<<rot * p
-        end
-      end
-      p "!!!! pts = #{pts}"
+      # if rot!=nil
+      #   pts=[]
+      #   for p in @mesh.points
+      #     pts<<p
+      #     # pts<<rot * p
+      #   end
+      # end
+      # p "!!!! pts = #{pts}"
       bbox.add(pts)
       min=bbox.min
       max=bbox.max
       size=[1,1,1]
       for i in 0..2
-        size[i]=max[i]-min[i]
+        size[i]=(max[i]-min[i])*@scale[i]
       end
       return size
     end
 
     def mesh
-      out_mesh=MeshUtil.clone_mesh @mesh
-      trans_reflect=ArchUtil.Transformation_scale_3d(@reflection)
+
+      flip=@reflection[0]*@reflection[1]*@reflection[2]
+      if flip<0
+        out_mesh=Geom::PolygonMesh.new
+        # p "polygon.size=#{@mesh.polygons.size}"
+        for polygon in @mesh.polygons
+          indice=polygon.reverse
+          pts=[]
+          for i in indice
+            pts<<@mesh.points[i-1]
+          end
+          # p "mesh:#{out_mesh} pts:#{pts}"
+          out_mesh.add_polygon(pts)
+        end
+      else
+        out_mesh=MeshUtil.clone_mesh @mesh
+      end
+
+      # p "mesh pre transform"
+      # for p in out_mesh.points
+      #   p "p->#{[p[0].to_m,p[1].to_m,p[2].to_m]}"
+      # end
+      fscale=@scale.clone
+      for i in 0..2
+        fscale[i] *= @reflection[i]
+      end
+      # p "fscale=#{fscale}"
+      trans_reflect=ArchUtil.Transformation_scale_3d(fscale)
       trans_translate=Geom::Transformation.translation(@position)
-      base_rotation=@base_vect.angle_between(Geom::Vector3d.new(1,0,0))
-      actual_rotation=@rotation.degrees-base_rotation
+      # base_rotation=@base_vect.angle_between(Geom::Vector3d.new(1,0,0))
+      actual_rotation=@rotation.degrees
       trans_rotate=Geom::Transformation.rotation([0,0,0],[0,0,1],actual_rotation)
       out_mesh.transform! trans_reflect
       out_mesh.transform! trans_rotate
       out_mesh.transform! trans_translate
+      # p "mesh post transform"
+      # for p in out_mesh.points
+      #   p "p->#{[p[0].to_m,p[1].to_m,p[2].to_m]}"
+      # end
       return out_mesh
     end
   end
@@ -773,6 +820,72 @@ module MeshUtil
     end # end for g in ents
     return abs_geos
   end # end function
+end
+
+
+module Sketchup
+  class Entity
+    def extract_geo()
+      g=self
+      if g.is_a? Sketchup::Entity
+        t=g.transformation
+        untrans=t.inverse
+
+        mesh=Geom::PolygonMesh.new()
+        # p "=============="
+
+        g.entities.each{|e|
+          if e.is_a? Sketchup::Face
+            verts=e.vertices
+            pts=[]
+            e.vertices.each{|v|
+              p=v.position
+              # pp=v.position.clone
+              # p=ms*v.position
+              # p "#{pp} ---> #{p} "
+              p "p=#{[p[0].to_m,p[1].to_m,p[2].to_m]}"
+              pts<<p
+            }
+            mesh.add_polygon(pts)
+          end
+        }
+
+        # mesh.transform! untrans
+
+        p '---------------'
+        # localbbox=Geom::BoundingBox.new()
+        # localbbox.add mesh.points
+        # mesh.points.each{|pt| p pt[0].to_m}
+        # trans=g.transformation
+        # mesh.transform! trans
+        reflection=[1,1,1]
+        zLessThanZero=(t.xaxis.cross(t.yaxis))[2]<0
+        reflection[0]=-1 if zLessThanZero
+        rot=t.rotz
+        rot=rot-180 if zLessThanZero
+
+
+        # tarr=t.to_a
+        # greflect=[tarr[0]<0, tarr[5]<0, tarr[10]<0]
+        # for i in 0..2
+        #   reflection[i]=-1 if greflect[i]
+        # end
+
+        geo=MeshUtil::AttrComposit.new
+        geo.add mesh
+        geo.position=g.transformation.origin
+        geo.reflection=reflection
+        geo.rotation=rot
+        geo.scale=[t.xscale,t.yscale,t.zscale]
+        return geo
+      elsif g.is_a? MeshUtil::AttrGeo
+        p "->attrGeo"
+        return g
+      end
+      p "shape_grammar.rb _extract_geo(g) g must be a Ssetchup::Entity or MeshUtil::AttrGeo"
+      raise ScriptError
+    end
+  end
 end
 
 
