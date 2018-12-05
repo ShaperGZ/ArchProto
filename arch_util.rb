@@ -65,6 +65,9 @@ module ArchUtil
     return g0
   end
 
+  def ArchUtil.formatVm(str,v)
+    return "#{str}#{[v[0].to_m,v[1].to_m,v[2].to_m]}"
+  end
   
 
   def ArchUtil.point_in_plane_front(point,plane)

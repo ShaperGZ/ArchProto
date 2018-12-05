@@ -1,4 +1,7 @@
+require 'array.rb'
+
 module MeshUtil
+
 
 
   class AttrGeo
@@ -307,6 +310,7 @@ module MeshUtil
       #   end
       # end
       # p "!!!! pts = #{pts}"
+      return nil if pts==nil or pts.size<3
       bbox.add(pts)
       min=bbox.min
       max=bbox.max
@@ -823,6 +827,209 @@ module MeshUtil
 end
 
 
+
+
+module SG
+  class SGObject
+    attr_accessor :transformation
+    # base_mesh is the untransformed mesh
+    attr_accessor :base_mesh
+    attr_accessor :base_vect
+
+    def SGObject.create(g=nil)
+
+      g=Sketchup.active_model.selection[0] if g==nil
+      # 1 GET THE MESH
+      mesh=Geom::PolygonMesh.new
+      mfs=[]
+      g.entities.each{|e|
+        if e.is_a? Sketchup::Face
+          pts=[]
+          e.vertices.each{|v|
+            pts<<v.position
+          }
+          mesh.add_polygon(pts)
+        end
+      }
+
+      # 2 GET THE TRANSFORM
+      bound=Geom::BoundingBox.new
+      bound.add(*mesh.points)
+      t=g.transformation
+
+      g_ref,g_rot,g_scale=self._reflection_rotation_size(t)
+
+      # 3 TRANSFORM THE MESH INTO UNIT MESH
+      size=[bound.width,bound.height,bound.depth]
+      p ArchUtil.formatVm "mesh bound size=",size
+      p "g_rot=#{g_rot}"
+      rsize=[1/size[0],1/size[1],1/size[2]]
+      trans_rscale=ArchUtil.Transformation_scale_3d(rsize.abs)
+      mesh.transform! trans_rscale
+
+      # 4 CREATE SGO AND SET TRANSFORM
+      3.times{|i|
+        size[i]*=g_scale[i]
+      }
+      sgo=SG::SGObject.new()
+      sgo.base_mesh=mesh
+      p ArchUtil.formatVm "geo size=",size
+      rot=g_rot
+      rot=360-g_rot if g_ref[0]<0
+      sgo._update_transform(size,rot,t.origin)
+      # sgo._update_transform(size,g_rot,t.origin)
+      return sgo
+    end
+
+    def add_individual_model(g=nil)
+      if g==nil
+        g=Sketchup.active_model.entities.add_group
+        g.entities.add_faces_from_mesh(@base_mesh,0)
+        g.transformation=@transformation
+        return g
+      end
+    end
+
+    def initialize()
+      @transformation=Geom::Transformation.new
+      @anchor_reflection=[1,1,1]
+      @base_vect=Geom::Vector3d.new(1,0,0)
+    end
+
+    def rotation
+      return transformation.rotz
+    end
+
+    def transformation=(val)
+      @transformation=val if val.si_a? Geom::Transformation
+    end
+
+    def _update_transform(nsize=nil,nrot=nil,npos=nil)
+      t=@transformation
+      tmp_reflect,tmp_rot,tmp_size=_reflection_rotation_size(t)
+      nsize=tmp_size if nsize==nil
+      nrot=tmp_rot if nrot==nil
+      npos=t.origin if npos==nil
+
+      nt=Geom::Transformation.new
+      # matrix has to be multiplied in this order: T.R.S
+      p "nsize=#{[nsize[0].to_m,nsize[1].to_m,nsize[2].to_m]}"
+      trans_scale=ArchUtil.Transformation_scale_3d(nsize)
+      p "nt.xscale=#{nt.xscale.to_m}"
+      p "input rot=#{nrot}"
+      trans_rotate=Geom::Transformation.rotation(Geom::Point3d.new(0,0,0),Geom::Vector3d.new(0,0,1),nrot.degrees)
+      trans_position=Geom::Transformation.translation(npos)
+      nt*=trans_position * trans_rotate * trans_scale
+      p "nt.xscale=#{nt.xscale.to_m}"
+      p "nt.rotz=#{nt.rotz}"
+      # nt*=trans_rotate
+      # nt*=trans_scale
+      @transformation=nt
+    end
+
+    def size
+      ef,rot,sz=self._reflection_rotation_size(@transformation)
+      return sz
+    end
+
+    def SGObject._reflection_rotation_size(t)
+      reflection=[1,1,1]
+      zLessThanZero=(t.xaxis.cross(t.yaxis))[2]<0
+      reflection[0]=-1 if zLessThanZero
+      rot=t.rotz
+      rot=rot-180 if zLessThanZero
+
+      sz= [t.xscale,t.yscale,t.zscale]
+      for i in 0..2
+        sz[i]*=reflection[i]
+      end
+      return reflection,rot,sz
+    end
+
+    def position
+      return @transformation.origin
+    end
+
+    def anchor_reflection
+      return @anchor_reflection
+    end
+
+    def anchor_reflection=(val=[1,1,1])
+      org_reflection=@anchor_reflection
+      new_reflection=val
+      flip=[1,1,1]
+      3.times{|i| flip[i]=-1 if org_reflection[i]!=new_reflection[i]}
+      p "flip=#{flip}"
+      anchor_flip(flip)
+      @anchor_reflection=val
+    end
+
+    def base_vects
+      x=@base_vect
+      z=Geom::Vector3d.new(0,0,1)
+      y=z.cross x
+      return [x,y,z]
+    end
+
+    def vects
+      x=@transformation.xaxis
+      y=@transformation.yaxis
+      z=@transformation.zaxis
+      return [x,y,z]
+    end
+
+    def anchor_flip(val)
+      pos=position()
+      mesh_offset=Geom::Point3d.new(0,0,0)
+      geovects=vects()
+      basevects=base_vects()
+      geosize=size()
+      newsize=[]
+      3.times{|i|
+        if val[i]<0
+          geovects[i].length=geosize[i]
+          #new position
+          pos += geovects[i]
+
+          #mesh offset vector
+          unitvect=basevects[i].clone
+          unitvect.length=1
+          mesh_offset+=unitvect
+        end
+        newsize<<geosize[i]*val[i]
+      }
+      trans_scale=ArchUtil.Transformation_scale_3d(val)
+      trans_translate=Geom::Transformation.translation(mesh_offset)
+
+      @base_mesh.transform! trans_scale
+      @base_mesh.transform! trans_translate
+
+      g_ref,g_rot,g_scale=self._reflection_rotation_size(@transformation)
+      _update_transform(newsize,g_rot,pos)
+    end
+
+    def mesh
+      # this method transform the base_mesh with it's transformation
+
+    end
+  end
+end
+
+def sgotest
+  $sel=Sketchup.active_model.selection
+  $sgo=SG::SGObject.create
+  p "sgo.position=#{$sgo.position}"
+  p "sgo.rotation=#{$sgo.rotation}"
+  p "sgo.size=#{$sgo.size}"
+  $sgo.anchor_reflection = [-1,-1,1]
+
+
+  $sel.clear
+  $sg=$sgo.add_individual_model
+  $sel.add($sg)
+
+end
+
 module Sketchup
   class Entity
     def extract_geo()
@@ -843,7 +1050,7 @@ module Sketchup
               # pp=v.position.clone
               # p=ms*v.position
               # p "#{pp} ---> #{p} "
-              p "p=#{[p[0].to_m,p[1].to_m,p[2].to_m]}"
+              # p "p=#{[p[0].to_m,p[1].to_m,p[2].to_m]}"
               pts<<p
             }
             mesh.add_polygon(pts)
@@ -852,7 +1059,7 @@ module Sketchup
 
         # mesh.transform! untrans
 
-        p '---------------'
+        # p '---------------'
         # localbbox=Geom::BoundingBox.new()
         # localbbox.add mesh.points
         # mesh.points.each{|pt| p pt[0].to_m}
@@ -884,6 +1091,20 @@ module Sketchup
       end
       p "shape_grammar.rb _extract_geo(g) g must be a Ssetchup::Entity or MeshUtil::AttrGeo"
       raise ScriptError
+    end
+
+    def extract_sgobject()
+      gp=self
+      if gp.is_a? Sketcup::Group
+        m=Geom::PolygonMesh.new
+        gp.entities.each{|f|
+          if f.is_a? Sketchup::face
+            pts=[]
+            f.points.each{|v| pts<<v.position}
+            m.add_polygon(pts)
+          end
+        }
+      end
     end
   end
 end
