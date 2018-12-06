@@ -890,15 +890,20 @@ module SG
       end
     end
 
+    def add_model(container=nil)
+      if container==nil
+        container=Sketchup.active_model.entities.add_group
+      end
+      m=mesh()
+      container.entities.add_faces_from_mesh(m,0)
+    end
+
     def initialize()
       @transformation=Geom::Transformation.new
       @anchor_reflection=[1,1,1]
       @base_vect=Geom::Vector3d.new(1,0,0)
     end
 
-    def rotation
-      return transformation.rotz
-    end
 
     def transformation=(val)
       @transformation=val if val.si_a? Geom::Transformation
@@ -906,7 +911,7 @@ module SG
 
     def _update_transform(nsize=nil,nrot=nil,npos=nil)
       t=@transformation
-      tmp_reflect,tmp_rot,tmp_size=_reflection_rotation_size(t)
+      tmp_reflect,tmp_rot,tmp_size=SGObject._reflection_rotation_size(t)
       nsize=tmp_size if nsize==nil
       nrot=tmp_rot if nrot==nil
       npos=t.origin if npos==nil
@@ -927,11 +932,6 @@ module SG
       @transformation=nt
     end
 
-    def size
-      ef,rot,sz=self._reflection_rotation_size(@transformation)
-      return sz
-    end
-
     def SGObject._reflection_rotation_size(t)
       reflection=[1,1,1]
       zLessThanZero=(t.xaxis.cross(t.yaxis))[2]<0
@@ -946,15 +946,79 @@ module SG
       return reflection,rot,sz
     end
 
+    def set_base_mesh(mesh)
+      # this method normalize the given mesh
+      bound=Geom::BoundingBox.new()
+      bound.add(*mesh.points)
+      p "bound.min=#{bound.min[0].to_f}"
+      mesh_offset=Geom::Point3d.new(0,0,0)-bound.min
+      p "mesh_offset=#{mesh_offset[0].to_f}"
+      size=[bound.width,bound.height,bound.depth]
+      scale=[1/size[0],1/size[1],1/size[2]]
+      trans_T=Geom::Transformation.translation(mesh_offset)
+      trans_S=ArchUtil.Transformation_scale_3d(scale)
+      # trans=trans_T*trans_S
+      # mesh.transform! trans
+      mesh.transform! trans_T
+      mesh.transform! trans_S
+      # p "trans.position:#{trans.origin[0].to_f}"
+      # p "trans.position scaled:#{trans.origin[0].to_f * size[0]}"
+
+      @base_mesh=mesh
+    end
+
     def position
       return @transformation.origin
     end
 
-    def anchor_reflection
+    def position=(val)
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      p=val
+      _update_transform(s,r,p)
+    end
+
+    def scale(scaleArray)
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      oldsize=s()
+      newsize=oldsize.clone
+      3.times{|i| newsize[i]*=scaleArray[i]}
+      _update_transform(newsize,r,position())
+    end
+
+    def reflection_rotation_scale()
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      return f,r,s
+    end
+
+    def size
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      return s
+    end
+
+    def size=(val)
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      s=val
+      p=position()
+      _update_transform(s,r,p)
+    end
+
+    def rotation
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      return r
+    end
+
+    def rotation=(val)
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      r=val
+      p=position
+      _update_transform(s,r,p)
+    end
+
+    def reflection
       return @anchor_reflection
     end
 
-    def anchor_reflection=(val=[1,1,1])
+    def reflection=(val=[1,1,1])
       org_reflection=@anchor_reflection
       new_reflection=val
       flip=[1,1,1]
@@ -965,7 +1029,7 @@ module SG
     end
 
     def base_vects
-      x=@base_vect
+      x=@base_vect.clone
       z=Geom::Vector3d.new(0,0,1)
       y=z.cross x
       return [x,y,z]
@@ -1004,13 +1068,16 @@ module SG
       @base_mesh.transform! trans_scale
       @base_mesh.transform! trans_translate
 
-      g_ref,g_rot,g_scale=self._reflection_rotation_size(@transformation)
+      g_ref,g_rot,g_scale=SGObject._reflection_rotation_size(@transformation)
       _update_transform(newsize,g_rot,pos)
     end
 
     def mesh
       # this method transform the base_mesh with it's transformation
-
+      raise "base mesh is nil, check creation process" if @base_mesh==nil
+      out_mesh=MeshUtil.clone_mesh(@base_mesh)
+      out_mesh.transform! @transformation
+      return out_mesh
     end
   end
 end
@@ -1022,6 +1089,7 @@ def sgotest
   p "sgo.rotation=#{$sgo.rotation}"
   p "sgo.size=#{$sgo.size}"
   $sgo.anchor_reflection = [-1,-1,1]
+  $sgo.anchor_reflection = [-1,1,1]
 
 
   $sel.clear
@@ -1030,9 +1098,20 @@ def sgotest
 
 end
 
+module Geom
+  class PolygonMesh
+    def create_sgo()
+      # mesh=self
+      # bound=Geom::BoundingBox.new()
+      # bound.add mesh.points
+      # pos=bound.position
+    end
+  end
+end
+
 module Sketchup
   class Entity
-    def extract_geo()
+    def create_geo()
       g=self
       if g.is_a? Sketchup::Entity
         t=g.transformation
@@ -1093,18 +1172,8 @@ module Sketchup
       raise ScriptError
     end
 
-    def extract_sgobject()
-      gp=self
-      if gp.is_a? Sketcup::Group
-        m=Geom::PolygonMesh.new
-        gp.entities.each{|f|
-          if f.is_a? Sketchup::face
-            pts=[]
-            f.points.each{|v| pts<<v.position}
-            m.add_polygon(pts)
-          end
-        }
-      end
+    def create_sgo()
+      return SG::SGObject.create(self)
     end
   end
 end

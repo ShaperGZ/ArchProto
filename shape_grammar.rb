@@ -57,7 +57,7 @@ module SG
 
     def Rule._extract_geo(g)
       if g.is_a? Sketchup::Entity
-        g=g.extract_geo
+        g=g.create_geo
       end
       return g
     end
@@ -131,71 +131,76 @@ module SG
     # +geometry+:: abstract geometry
     # +divs+:: array of float spacifies length of each division
 
-    ttl=geometry.size[axis].to_m
-    basevect=geometry.vects[0]
-
-    # p "pre modify divs=#{divs}"
-    divs=SG._modify_divs(divs,ttl,repeat)
-    normal=geometry.vects[axis]
-    geopos=geometry.position.clone
-    if inverse_dir
-      geopos+=normal
-      normal.reverse!
-    end
-
-    mesh=geometry.mesh
-    inverse=Geom::Vector3d.new(*geopos)
-    inverse.reverse!
-    mesh.transform! Geom::Transformation.translation(inverse)
-    # p "post modify divs=#{divs}"
+    # we split the msh with the unitized base_mesh
+    # so the sizes are all 1
+    pF,pR,pS=geometry.reflection_rotation_scale()
+    actualsize=pS
+    ttl=actualsize[axis].abs.to_m
+    basevect=geometry.base_vects[axis].normalize
     geos=[]
+
+    p "pre modify divs=#{divs}, ttl=#{ttl}"
+    divs=SG._modify_divs(divs,ttl,repeat)
+    p "post modify divs=#{divs}"
+    # scale the div base on nomalized size
+    for i in 0..divs.size-1
+      divs[i]/=ttl
+    end
+    p "post normalize divs=#{divs}"
+    normal=basevect
+    origin=Geom::Point3d.new(0,0,0)
+
+    mesh=geometry.base_mesh
     current=0
     for i in 0..divs.size-1
       d=divs[i]+current
       offset_vect=Geom::Vector3d.new(*normal)
-      offset_vect.length=d.m
-      # p "d=#{offset_vect.length.to_m}m"
+      offset_vect.length=d
       pos=Geom::Point3d.new(*offset_vect)
-      # pos=geometry.position+offset_vect
       pln=[pos,normal]
-      # p "d=#{d} pos.x=#{pos[0].to_m}"
-      # p "mesh=#{mesh} size=#{mesh.points.size}"
       left,right,cap=MeshUtil.split_mesh(pln,mesh,true)
-      # p "left=#{left}, right=#{right}"
-
+      p "d=#{d} left:#{left.points.size} right:#{right.points.size}"
       mesh=right
       current=d
 
-      # m_rot=Geom::Transformation.rotation([0,0,0],[0,0,1],-geometry.rotation)
+      geo=SGObject.new()
+      geo.set_base_mesh left
+      size=actualsize.clone
+      size[axis]=divs[i]*actualsize[axis]
+      if i>0
+        lgeo=geos[-1]
+        offset_vect=geometry.vects[axis].clone
+        offset_vect.length=lgeo.size[axis].abs
+        gpos=lgeo.position+offset_vect
+      else
+        gpos=geometry.position
+      end
+      grot=geometry.rotation
+      p "actual size=#{actualsize} left size=#{size}"
+      geo._update_transform(size,grot,gpos)
+      geos<<geo
 
-      geo=MeshUtil::AttrComposit.new()
-      if true
-      # if left.points.size>=4
-      #   geo.add left, geometry.position
-        # mesh.transform! m_rot
-        geo.add left
-        geo.position=geometry.position
-        geo.reflection=geometry.reflection
-        geo.rotation=geometry.rotation
-        # geo.base_vect=basevect
+      p "parent.rot=#{geometry.rotation} left.rot=#{geo.rotation}"
+
+      if i==divs.size-1 and current<1 and right.points.size>=3
+        remain=(1-current)*ttl.m
+        p "remain=#{remain.to_m} current=#{current}"
+        geo=SGObject.new()
+        geo.set_base_mesh right
+        size=actualsize.clone
+        size[axis]= size[axis]/(size[axis].abs)*remain
+        lgeo=geos[-1]
+        # offset_vect.length=divs[i]*actualsize[axis]
+        offset_vect=geometry.vects[axis].clone
+        offset_vect.length=lgeo.size[axis].abs
+        gpos=lgeo.position+offset_vect
+
+        p "actual size=#{actualsize} right size=#{size}"
+        geo._update_transform(size,grot,gpos)
         geos<<geo
       end
-
-      if i==divs.size-1 and right.points.size>=3
-        geo=MeshUtil::AttrComposit.new()
-        if true
-        # if right.points.size>=4
-        #   geo.add right,pos
-          # mesh.transform! m_rot
-          geo.add right, pos
-          geo.position=geometry.position+offset_vect
-          geo.reflection=geometry.reflection
-          geo.rotation=geometry.rotation
-          # geo.base_vect=basevect
-          geos<<geo
-        end
-      end
     end
+
     return geos
   end
 
@@ -496,6 +501,16 @@ def teset_extract
   end
 end
 
+def sgtest1
+  sel=Sketchup.active_model.selection
+  for g in sel
+    sgo=g.create_sgo
+    splits=SG.split_length(sgo,[0.2,0.4])
+    for g in splits
+      g.add_individual_model()
+    end
+  end
+end
 
 def sgtest
   $sgi=SGInvalidator.new
