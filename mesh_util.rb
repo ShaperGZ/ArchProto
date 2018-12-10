@@ -690,7 +690,7 @@ module MeshUtil
         p2=pts[index2-1]
         onTop=ArchUtil.point_in_plane_front(p1,plane)
         # p "i:#{i} ontop=#{onTop} p1:#{p1} p2:#{p2}"
-        if onTop
+        if onTop==1
           gon_right<<p1
         else
           gon_left<<p1
@@ -718,7 +718,7 @@ module MeshUtil
       left<<gon_left if gon_left.size>=3
       right<<gon_right if gon_right.size>=3
 
-      xedge.reverse! if reverse
+      xedge.reverse! if reverse==1
       xedges<<xedge if xedge.size>=2
     end
     begin
@@ -835,6 +835,7 @@ module SG
     # base_mesh is the untransformed mesh
     attr_accessor :base_mesh
     attr_accessor :base_vect
+    attr_accessor :name
 
     def SGObject.create(g=nil)
 
@@ -888,6 +889,7 @@ module SG
         g.transformation=@transformation
         return g
       end
+
     end
 
     def add_model(container=nil)
@@ -902,6 +904,7 @@ module SG
       @transformation=Geom::Transformation.new
       @anchor_reflection=[1,1,1]
       @base_vect=Geom::Vector3d.new(1,0,0)
+      @name=''
     end
 
 
@@ -910,23 +913,26 @@ module SG
     end
 
     def _update_transform(nsize=nil,nrot=nil,npos=nil)
+
       t=@transformation
       tmp_reflect,tmp_rot,tmp_size=SGObject._reflection_rotation_size(t)
       nsize=tmp_size if nsize==nil
       nrot=tmp_rot if nrot==nil
       npos=t.origin if npos==nil
+      3.times{|i| nsize[i]=1 if nsize[i]==0}
+
 
       nt=Geom::Transformation.new
       # matrix has to be multiplied in this order: T.R.S
-      p "nsize=#{[nsize[0].to_m,nsize[1].to_m,nsize[2].to_m]}"
+      # p "nsize=#{[nsize[0].to_m,nsize[1].to_m,nsize[2].to_m]}"
       trans_scale=ArchUtil.Transformation_scale_3d(nsize)
-      p "nt.xscale=#{nt.xscale.to_m}"
-      p "input rot=#{nrot}"
+      # p "nt.xscale=#{nt.xscale.to_m}"
+      # p "input rot=#{nrot}"
       trans_rotate=Geom::Transformation.rotation(Geom::Point3d.new(0,0,0),Geom::Vector3d.new(0,0,1),nrot.degrees)
       trans_position=Geom::Transformation.translation(npos)
       nt*=trans_position * trans_rotate * trans_scale
-      p "nt.xscale=#{nt.xscale.to_m}"
-      p "nt.rotz=#{nt.rotz}"
+      # p "nt.xscale=#{nt.xscale.to_m}"
+      # p "nt.rotz=#{nt.rotz}"
       # nt*=trans_rotate
       # nt*=trans_scale
       @transformation=nt
@@ -936,10 +942,13 @@ module SG
       reflection=[1,1,1]
       zLessThanZero=(t.xaxis.cross(t.yaxis))[2]<0
       reflection[0]=-1 if zLessThanZero
+
       rot=t.rotz
+
       rot=rot-180 if zLessThanZero
 
       sz= [t.xscale,t.yscale,t.zscale]
+      3.times{|i| sz[i]=1 if sz[i]==0}
       for i in 0..2
         sz[i]*=reflection[i]
       end
@@ -952,7 +961,7 @@ module SG
       bound.add(*mesh.points)
       p "bound.min=#{bound.min[0].to_f}"
       mesh_offset=Geom::Point3d.new(0,0,0)-bound.min
-      p "mesh_offset=#{mesh_offset[0].to_f}"
+      # p "mesh_offset=#{mesh_offset[0].to_f}"
       size=[bound.width,bound.height,bound.depth]
       scale=[1/size[0],1/size[1],1/size[2]]
       trans_T=Geom::Transformation.translation(mesh_offset)

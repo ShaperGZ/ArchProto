@@ -57,7 +57,7 @@ module SG
 
     def Rule._extract_geo(g)
       if g.is_a? Sketchup::Entity
-        g=g.create_geo
+        g=g.create_sgo
       end
       return g
     end
@@ -139,14 +139,14 @@ module SG
     basevect=geometry.base_vects[axis].normalize
     geos=[]
 
-    p "pre modify divs=#{divs}, ttl=#{ttl}"
+    # p "pre modify divs=#{divs}, ttl=#{ttl}"
     divs=SG._modify_divs(divs,ttl,repeat)
-    p "post modify divs=#{divs}"
+    # p "post modify divs=#{divs}"
     # scale the div base on nomalized size
     for i in 0..divs.size-1
       divs[i]/=ttl
     end
-    p "post normalize divs=#{divs}"
+    # p "post normalize divs=#{divs}"
     normal=basevect
     origin=Geom::Point3d.new(0,0,0)
 
@@ -159,44 +159,45 @@ module SG
       pos=Geom::Point3d.new(*offset_vect)
       pln=[pos,normal]
       left,right,cap=MeshUtil.split_mesh(pln,mesh,true)
-      p "d=#{d} left:#{left.points.size} right:#{right.points.size}"
+      # p "d=#{d} left:#{left.points.size} right:#{right.points.size}"
       mesh=right
       current=d
 
+      bound=Geom::BoundingBox.new
+      bound.add(left.points)
+      size=[bound.width,bound.height,bound.depth]
+      pos=bound.min
+      3.times{|i|
+        size[i]*=actualsize[i]
+        pos[i]*=actualsize[i]
+      }
       geo=SGObject.new()
       geo.set_base_mesh left
-      size=actualsize.clone
-      size[axis]=divs[i]*actualsize[axis]
-      if i>0
-        lgeo=geos[-1]
-        offset_vect=geometry.vects[axis].clone
-        offset_vect.length=lgeo.size[axis].abs
-        gpos=lgeo.position+offset_vect
-      else
-        gpos=geometry.position
-      end
+
       grot=geometry.rotation
-      p "actual size=#{actualsize} left size=#{size}"
-      geo._update_transform(size,grot,gpos)
+      # p "actual size=#{actualsize} left size=#{size}"
+      pos=geometry.position+Geom::Vector3d.new(*pos)
+      geo._update_transform(size,grot,pos)
       geos<<geo
 
-      p "parent.rot=#{geometry.rotation} left.rot=#{geo.rotation}"
+      # p "parent.rot=#{geometry.rotation} left.rot=#{geo.rotation}"
 
-      if i==divs.size-1 and current<1 and right.points.size>=3
+      if i==divs.size-1 and current<1 and right !=nil and right.points.size>=3
         remain=(1-current)*ttl.m
-        p "remain=#{remain.to_m} current=#{current}"
+        # p "remain=#{remain.to_m} current=#{current}"
+        bound=Geom::BoundingBox.new
+        bound.add(right.points)
+        size=[bound.width,bound.height,bound.depth]
+        pos=bound.min
+        3.times{|i|
+          size[i]*=actualsize[i]
+          pos[i]*=actualsize[i]
+        }
         geo=SGObject.new()
         geo.set_base_mesh right
-        size=actualsize.clone
-        size[axis]= size[axis]/(size[axis].abs)*remain
-        lgeo=geos[-1]
-        # offset_vect.length=divs[i]*actualsize[axis]
-        offset_vect=geometry.vects[axis].clone
-        offset_vect.length=lgeo.size[axis].abs
-        gpos=lgeo.position+offset_vect
 
-        p "actual size=#{actualsize} right size=#{size}"
-        geo._update_transform(size,grot,gpos)
+        pos=geometry.position+Geom::Vector3d.new(*pos)
+        geo._update_transform(size,grot,pos)
         geos<<geo
       end
     end
@@ -208,7 +209,7 @@ module SG
     size=geometry.size
     return [geometry] if size==nil
 
-    ttl=size[axis].to_m
+    ttl=size[axis].abs.to_m
     for i in 0..divs.size-1
       divs[i]*=ttl
     end
@@ -221,10 +222,12 @@ module SGRules
   class Grammar < SG::Rule
     attr_accessor :rules
     attr_accessor :container
+    attr_accessor :mode #0 add to single mode, 1 add to individual models
     def initialize()
       super()
       @container=nil
       @rules=[]
+      @mode=0
       @name='UNGrammar'
     end
     def Grammar.create(geos=nil)
@@ -275,6 +278,19 @@ module SGRules
       end
       @outputs=last_output
       nil
+    end
+
+    def update_individual_model()
+      if @contianers!=nil and @containers.size>0
+        @containers.each{|ct|
+          ct.delete!
+        }
+      end
+      @containers=[]
+
+      @outputs.each{|op|
+        @containers<< op.add_individual_model
+      }
     end
 
     def update_model()
@@ -464,7 +480,8 @@ class SGInvalidator
 
     for g in invalidated_grammars
       g.execute
-      g.update_model
+      # g.update_model
+      g.update_individual_model
     end
     nil
   end
@@ -505,7 +522,8 @@ def sgtest1
   sel=Sketchup.active_model.selection
   for g in sel
     sgo=g.create_sgo
-    splits=SG.split_length(sgo,[0.2,0.4])
+    # splits=SG.split_length(sgo,[0.2,0.4])
+    splits=SG.split_ratio(sgo,[0.5])
     for g in splits
       g.add_individual_model()
     end
@@ -516,10 +534,12 @@ def sgtest
   $sgi=SGInvalidator.new
 
   $g=SGRules::Grammar.create()
+  # $g.add(SGRules::Split.new('','A,B','r0.5',0))
+  # $g.add(SGRules::Split.new('A','A','r0.5',1))
   $g.add(SGRules::SplitEqual.new('','A,B,C',4.5,0,true))
-  $g.add(SGRules::Split.new('A','bath,main','3',1,Repeat::None,true))
-  $g.add(SGRules::Split.new('B','main1,main2','r0.5',1))
-  $g.add(SGRules::Split.new('C','main3,main4','r0.3',1))
+  $g.add(SGRules::Split.new('A','bath,main','3.m',1,Repeat::None,true))
+  # $g.add(SGRules::Split.new('B','main1,main2','r0.5',1))
+  # $g.add(SGRules::Split.new('C','main3,main4','r0.3',1))
   # $g.add(SGRules::Split.new('A','A','r0.5',2))
   # $g.execute()
   # $g.update_model()
@@ -527,6 +547,7 @@ def sgtest
   $sgi.add_grammar $g
   $sgi.add_range($g.inputs)
   $sgi.invalidate
+
   $sgi.reset_timer
   nil
 end
