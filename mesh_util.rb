@@ -862,8 +862,8 @@ module SG
 
       # 3 TRANSFORM THE MESH INTO UNIT MESH
       size=[bound.width,bound.height,bound.depth]
-      p ArchUtil.formatVm "mesh bound size=",size
-      p "g_rot=#{g_rot}"
+      # p ArchUtil.formatVm "mesh bound size=",size
+      # p "g_rot=#{g_rot}"
       rsize=[1/size[0],1/size[1],1/size[2]]
       trans_rscale=ArchUtil.Transformation_scale_3d(rsize.abs)
       mesh.transform! trans_rscale
@@ -874,7 +874,7 @@ module SG
       }
       sgo=SG::SGObject.new()
       sgo.base_mesh=mesh
-      p ArchUtil.formatVm "geo size=",size
+      # p ArchUtil.formatVm "geo size=",size
       rot=g_rot
       rot=360-g_rot if g_ref[0]<0
       sgo._update_transform(size,rot,t.origin)
@@ -885,8 +885,18 @@ module SG
     def add_individual_model(g=nil)
       if g==nil
         g=Sketchup.active_model.entities.add_group
-        g.entities.add_faces_from_mesh(@base_mesh,0)
+        f=@anchor_reflection
+        # f=trans_reflection
+        flip=f[0]*f[1]*f[2]
+        # p "AF=#{@anchor_reflection} TF=#{trans_reflection} flip=#{flip} "
+        if flip<0
+          out_mesh=_flip_mesh_face(@base_mesh)
+        else
+          out_mesh=MeshUtil.clone_mesh @base_mesh
+        end
+        g.entities.add_faces_from_mesh(out_mesh,0)
         g.transformation=@transformation
+        g.name=@name
         return g
       end
 
@@ -907,6 +917,9 @@ module SG
       @name=''
     end
 
+    def set_anchor_reflection_values_only(reflection)
+      @anchor_reflection=reflection
+    end
 
     def transformation=(val)
       @transformation=val if val.si_a? Geom::Transformation
@@ -959,7 +972,7 @@ module SG
       # this method normalize the given mesh
       bound=Geom::BoundingBox.new()
       bound.add(*mesh.points)
-      p "bound.min=#{bound.min[0].to_f}"
+      # p "bound.min=#{bound.min[0].to_f}"
       mesh_offset=Geom::Point3d.new(0,0,0)-bound.min
       # p "mesh_offset=#{mesh_offset[0].to_f}"
       size=[bound.width,bound.height,bound.depth]
@@ -1027,12 +1040,17 @@ module SG
       return @anchor_reflection
     end
 
+    def trans_reflection
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      return f
+    end
+
     def reflection=(val=[1,1,1])
       org_reflection=@anchor_reflection
       new_reflection=val
       flip=[1,1,1]
       3.times{|i| flip[i]=-1 if org_reflection[i]!=new_reflection[i]}
-      p "flip=#{flip}"
+      # p "flip=#{flip}"
       anchor_flip(flip)
       @anchor_reflection=val
     end
@@ -1052,6 +1070,10 @@ module SG
     end
 
     def anchor_flip(val)
+      # sample val: [-1,1,1]
+      # this will flip the X axis
+
+      g_ref,g_rot,g_scale=SGObject._reflection_rotation_size(@transformation)
       pos=position()
       mesh_offset=Geom::Point3d.new(0,0,0)
       geovects=vects()
@@ -1060,14 +1082,17 @@ module SG
       newsize=[]
       3.times{|i|
         if val[i]<0
-          geovects[i].length=geosize[i]
+          posoffset=geovects[i].clone
+          posoffset.length=geosize[i]*g_ref[i]
           #new position
-          pos += geovects[i]
+          pos += posoffset
 
           #mesh offset vector
-          unitvect=basevects[i].clone
-          unitvect.length=1
-          mesh_offset+=unitvect
+          if val[i]<0
+            unitvect=basevects[i].clone
+            unitvect.length=1
+            mesh_offset+=unitvect
+          end
         end
         newsize<<geosize[i]*val[i]
       }
@@ -1077,19 +1102,47 @@ module SG
       @base_mesh.transform! trans_scale
       @base_mesh.transform! trans_translate
 
-      g_ref,g_rot,g_scale=SGObject._reflection_rotation_size(@transformation)
+      # p "tf=#{g_ref}, val=#{val}"
+      
+      # pos-=Geom::Vector3d.new(*mesh_offset)
       _update_transform(newsize,g_rot,pos)
     end
 
     def mesh
       # this method transform the base_mesh with it's transformation
       raise "base mesh is nil, check creation process" if @base_mesh==nil
-      out_mesh=MeshUtil.clone_mesh(@base_mesh)
+      f=@anchor_reflection
+      # f=trans_reflection
+      flip=f[0]*f[1]*f[2]
+      # p "AF=#{@anchor_reflection} TF=#{trans_reflection} flip=#{flip} "
+      if flip
+        out_mesh=_flip_mesh_face(@base_mesh)
+      else
+        out_mesh=MeshUtil.clone_mesh @base_mesh
+      end
       out_mesh.transform! @transformation
+      return out_mesh
+    end
+
+    def _flip_mesh_face(mesh)
+      out_mesh=Geom::PolygonMesh.new
+      for pg in mesh.polygons
+        rev=pg.reverse
+        pts=[]
+        rev.each{|index|
+          pt=mesh.points[index-1]
+
+          pts<<pt if pt!=nil
+        }
+        # p "pts=#{pts}"
+        out_mesh.add_polygon(pts)
+      end
       return out_mesh
     end
   end
 end
+
+
 
 def sgotest
   $sel=Sketchup.active_model.selection

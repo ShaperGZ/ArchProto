@@ -43,7 +43,7 @@ module SG
     def execute()
     end
 
-    def assign_names()
+    def assign_names(outputs)
       return if @out_names.size==0
       index=0
       for i in 0..outputs.size-1
@@ -96,7 +96,7 @@ module SG
   def SG.split_equal(geometry,div,stretch=true,axis=0)
     size=geometry.size
     return [geometry] if size==nil
-    ttl=geometry.size[axis].to_m
+    ttl=geometry.size[axis].to_m.abs
     if stretch
       count=(ttl/div).round
       if count>0
@@ -135,8 +135,10 @@ module SG
     # so the sizes are all 1
     pF,pR,pS=geometry.reflection_rotation_scale()
     actualsize=pS
+    reflection=geometry.reflection
     ttl=actualsize[axis].abs.to_m
     basevect=geometry.base_vects[axis].normalize
+    basevect.length=geometry.reflection[axis]
     geos=[]
 
     # p "pre modify divs=#{divs}, ttl=#{ttl}"
@@ -149,9 +151,10 @@ module SG
     # p "post normalize divs=#{divs}"
     normal=basevect
     origin=Geom::Point3d.new(0,0,0)
-
+    af=geometry.reflection
     mesh=geometry.base_mesh
     current=0
+    normal.length=af[axis]
     for i in 0..divs.size-1
       d=divs[i]+current
       offset_vect=Geom::Vector3d.new(*normal)
@@ -159,50 +162,57 @@ module SG
       pos=Geom::Point3d.new(*offset_vect)
       pln=[pos,normal]
       left,right,cap=MeshUtil.split_mesh(pln,mesh,true)
-      # p "d=#{d} left:#{left.points.size} right:#{right.points.size}"
       mesh=right
       current=d
 
-      bound=Geom::BoundingBox.new
-      bound.add(left.points)
-      size=[bound.width,bound.height,bound.depth]
-      pos=bound.min
-      3.times{|i|
-        size[i]*=actualsize[i]
-        pos[i]*=actualsize[i]
-      }
-      geo=SGObject.new()
-      geo.set_base_mesh left
-
-      grot=geometry.rotation
-      # p "actual size=#{actualsize} left size=#{size}"
-      pos=geometry.position+Geom::Vector3d.new(*pos)
-      geo._update_transform(size,grot,pos)
-      geos<<geo
-
-      # p "parent.rot=#{geometry.rotation} left.rot=#{geo.rotation}"
+      geo=SG.__split_length_add_geo(left,geometry,normal,axis)
+      geos<<geo if geo!=nil
 
       if i==divs.size-1 and current<1 and right !=nil and right.points.size>=3
-        remain=(1-current)*ttl.m
-        # p "remain=#{remain.to_m} current=#{current}"
-        bound=Geom::BoundingBox.new
-        bound.add(right.points)
-        size=[bound.width,bound.height,bound.depth]
-        pos=bound.min
-        3.times{|i|
-          size[i]*=actualsize[i]
-          pos[i]*=actualsize[i]
-        }
-        geo=SGObject.new()
-        geo.set_base_mesh right
-
-        pos=geometry.position+Geom::Vector3d.new(*pos)
-        geo._update_transform(size,grot,pos)
-        geos<<geo
+        geo=SG.__split_length_add_geo(right,geometry,normal,axis)
+        geos<<geo if geo!=nil
       end
     end
-
+    # p "<<at split_length"
+    # geos.each{|g|
+    #   p g.size[0].to_m.round
+    # }
+    # p ">>"
     return geos
+  end
+
+  def SG.__split_length_add_geo(mesh,geometry,normal,axis)
+    # this method is used within split_length
+    # mesh:     the splited mesh, left or right
+    # geometry: the original geometry being splitted
+    # normal:   the normal of the splitting plane
+    return nil if mesh==nil or mesh.points.size<3
+
+    pF,pR,pS=geometry.reflection_rotation_scale()
+    actualsize=pS
+    bound=Geom::BoundingBox.new
+    bound.add(mesh.points)
+    size=[bound.width,bound.height,bound.depth]
+    pos=bound.min
+    # p "bound.pos=#{pos}"
+    # 因为切割用的是unit mesh，把尺寸放大回原几何体比例
+    3.times{|i|
+      size[i] *= actualsize[i]
+      pos[i]  *= actualsize[i]
+    }
+    geo=SGObject.new()
+    geo.set_base_mesh mesh
+    grot=geometry.rotation
+    posoffset=Geom::Vector3d.new(*pos)
+    # posoffset.length *= pF[axis]*-1 if posoffset.length!=0
+    posoffset = Geom::Transformation.rotation(geometry.position,[0,0,1],grot.degrees) * posoffset
+
+    # posoffset.length=posoffset.length.abs*reflection[axis] if posoffset.length!=0
+    pos=geometry.position+posoffset
+    # p "pos=#{pos} g.pos=#{geometry.position} posoffset=#{posoffset} reflection[#{axis}]=#{reflection[axis]}"
+    geo._update_transform(size,grot,pos)
+    geo.set_anchor_reflection_values_only(geometry.reflection)
+    return geo
   end
 
   def SG.split_ratio(geometry,divs,axis=0,repeat=Repeat::None,inverse=false)
@@ -213,7 +223,15 @@ module SG
     for i in 0..divs.size-1
       divs[i]*=ttl
     end
-    SG.split_length(geometry,divs,axis,repeat,inverse)
+    return SG.split_length(geometry,divs,axis,repeat,inverse)
+  end
+
+  def SG.flip_axis(geometry,flipArray=[-1,1,1])
+    af=geometry.reflection.clone
+    3.times{|i| af[i]*=flipArray[i]}
+    geometry.reflection=af
+    # geometry.anchor_flip(flipArray)
+    return geometry
   end
 end
 
@@ -312,9 +330,34 @@ module SGRules
     end
   end
 
+  class FlipAxis<SG::Rule
+    def initialize(in_names,out_names,fliparray)
+      super(in_names,out_names)
+      @fliparray=fliparray
+    end
+
+    def execute()
+      for g in @inputs
+        geoOutput=[]
+        g=SG::Rule._extract_geo(g)
+        if @in_names.include? g.name or @in_names.size==0
+          SG.flip_axis(g,@fliparray)
+          geoOutput<<g
+        else
+          @unused<<g
+        end
+        assign_names(geoOutput)
+        @outputs+=geoOutput if geoOutput.size>0
+      end
+
+      @outputs+=@unused
+      # p "FlipAxis outputs count=#{@outputs.size}"
+    end
+  end
+
   class SplitEqual<SG::Rule
-    def initialize(int_names,out_names,div,axis,stretch=true)
-      super(int_names,out_names)
+    def initialize(in_names,out_names,div,axis,stretch=true)
+      super(in_names,out_names)
       @params=div
       @stretch=stretch
       @axis=axis
@@ -330,13 +373,13 @@ module SGRules
         g=SG::Rule._extract_geo(g)
         if @in_names.include? g.name or @in_names.size==0
           geos=SG.split_equal(g,@params,@stretch,@axis)
+          assign_names(geos)
           @outputs+=geos if geos!=nil and geos.size>0
         else
           @unused<<g
         end
       end
 
-      assign_names()
       @outputs+=@unused
     end
   end
@@ -386,17 +429,21 @@ module SGRules
             p "undefined mode:#{@mode}"
             raise ScriptError
           end
-
-          # p "g:#{g.name} is splited into #{geos.size} geos"
-          @outputs+=geos if geos!=nil and geos.size!=nil and geos.size>0
+          if geos!=nil and geos.size!=nil and geos.size>0
+            assign_names(geos)
+            txt="#{g.name}: "
+            geos.each{|g|
+              txt+="n:#{g.name} s:#{g.size[0].to_m.round}"
+            }
+            p txt
+            @outputs+=geos
+          end
         else
           @unused<<g
         end
-        # p "[#{count}]: g.class=#{g.class} g.name=#{g.name} outs.size=#{@outputs.size} @unused.size=#{@unused}"
         count+=1
       end
 
-      assign_names()
       @outputs+=@unused
     end
 
@@ -526,6 +573,7 @@ def sgtest1
     splits=SG.split_ratio(sgo,[0.5])
     for g in splits
       g.add_individual_model()
+
     end
   end
 end
@@ -533,22 +581,49 @@ end
 def sgtest
   $sgi=SGInvalidator.new
 
-  $g=SGRules::Grammar.create()
-  # $g.add(SGRules::Split.new('','A,B','r0.5',0))
-  # $g.add(SGRules::Split.new('A','A','r0.5',1))
-  $g.add(SGRules::SplitEqual.new('','A,B,C',4.5,0,true))
-  $g.add(SGRules::Split.new('A','bath,main','3.m',1,Repeat::None,true))
-  # $g.add(SGRules::Split.new('B','main1,main2','r0.5',1))
-  # $g.add(SGRules::Split.new('C','main3,main4','r0.3',1))
-  # $g.add(SGRules::Split.new('A','A','r0.5',2))
-  # $g.execute()
-  # $g.update_model()
+  $g1=SGRules::Grammar.create()
+  # $g1.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
+  # $g1.add(SGRules::Split.new('A','B,A','r0.5',0))
+  $g1.add(SGRules::SplitEqual.new('','A,B',4,0,true))
+  $g1.add(SGRules::FlipAxis.new('B','A',[-1,1,1]))
+  $g1.add(SGRules::Split.new('A','cord,A','1',0,Repeat::None))
+  $g1.add(SGRules::Split.new('A','bath,main','3',1,Repeat::None,true))
+  # $g1.execute()
+  # $g1.update_model()
 
-  $sgi.add_grammar $g
-  $sgi.add_range($g.inputs)
+  $g2=SGRules::Grammar.create()
+  $g2.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
+  $g2.add(SGRules::Split.new('A','A,B','r0.5',0,Repeat::None))
+  $g2.add(SGRules::FlipAxis.new('B','A',[-1,1,1]))
+  $g2.add(SGRules::Split.new('A','B,C','r0.3',0))
+  # $g2.add(SGRules::Split.new('A','cord,A','1',0,Repeat::None))
+
+
+
+  $sgi.add_grammar $g1
+  $sgi.add_range($g1.inputs)
   $sgi.invalidate
 
   $sgi.reset_timer
   nil
 end
 
+def printreflection
+  sel=Sketchup.active_model.selection
+  for g in sel
+    sgo=g.create_sgo
+    af=sgo.reflection.clone
+    tf=sgo.trans_reflection.clone
+    mf=[1,1,1]
+    3.times{|i| mf[i]=af[i]*tf[i]}
+
+    sgo.reflection=[1,-1,1]
+    raf=sgo.reflection.clone
+    rtf=sgo.trans_reflection.clone
+    rmf=[1,1,1]
+    3.times{|i| mf[i]=af[i]*tf[i]}
+
+
+    p "af:#{af},tf:#{tf},mult#{mf} | raf:#{raf}, rtf:#{rtf}, rmulf:#{rmf}"
+  end
+end
