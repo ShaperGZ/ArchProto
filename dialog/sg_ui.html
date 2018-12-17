@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <table id="tb_grammar">
+
+    </table>
+</head>
+<body>
+
+</body>
+<style>
+    .sg_rule_name{
+        width: 50px;
+        height: 20px;
+        font-family:"Segoe UI";
+        font-size:10px;
+        font-weight: bold;
+        vertical-align: center;
+    }
+    .sg_rule_params{
+        width: 150px;
+        height: 20px;
+        font-family:"Segoe UI";
+        font-size:10px;
+        font-weight: normal;
+        vertical-align: center;
+        background-color: aliceblue;
+    }
+</style>
+<script>
+    Grammar = function(name){
+        var self=this;
+        this.rules=[]
+        this.doms=[]
+        this.add_rule=function(rulestr){
+            // sample rule string"
+            // 'Split|divs:r0.3,0.5,0.2;axis:0;repeat:111'
+            var rulestrs=rulestr.split('|')
+            var rule=new Rule(rulestrs[0],rulestrs[1])
+            this.rules.push(rule)
+        }
+        this.set_rule=function(rule,rule_index){
+            //好像暂时用不到
+        }
+        this.create_ui=function(){
+
+            var table=document.getElementById('tb_grammar')
+            var tbody=document.createElement('tbody')
+            table.appendChild(tbody)
+
+            var counter=0
+            for (var i=0;i<self.rules.length;i++){
+                var rule=self.rules[i]
+                var index=counter;
+                rule.index=index;
+                var tr=document.createElement('tr')
+                var td_rule_name=document.createElement('td')
+                var td_params=document.createElement('td')
+
+                // create the rule name
+                var sp_rule_name=document.createElement('span')
+                sp_rule_name.innerHTML=rule.name
+                sp_rule_name.className='sg_rule_name'
+
+                // create rule params
+                var sp_rule_param_str=document.createElement('span')
+                rule.create_ui(td_params)
+
+                td_rule_name.appendChild(sp_rule_name)
+                tr.appendChild(td_rule_name)
+                tr.appendChild(td_params)
+                tbody.appendChild(tr)
+                counter+=1
+            };
+        }
+    }
+    Rule=function(name,paramstr){
+        this.name=name;
+        this.index=0;
+        this.params=[]
+        var self=this;
+        this.create_params=function(paramstr){
+            // sample param:
+            // 'divs:r0.3,0.5,0.2;axis:0;repeat:111'
+            var strs=paramstr.split(';')
+            strs.forEach(function (e) {
+               var nv=e.split(':')
+               var name=nv[0]
+               var val=nv[1]
+               var p = new Param(name,val)
+               self.params.push(p)
+            });
+
+        }
+        this.create_params(paramstr);
+
+        this.format=function(){
+            //returns this rule in string format
+            //starts with index
+            //sample '1|Split|divs:r0.3,0.4;axis:0;repear:111'
+            var txt='';
+            txt+=self.index+'|'+self.name+'|';
+            counter=0;
+            self.params.forEach(function(p){
+                if (counter>0) txt+=';'
+                txt+=p.name+':'+p.value
+                counter++;
+            })
+            return txt;
+        }
+        this.to_skp=function(){
+
+        }
+        this.create_ui=function(container){
+            self.params.forEach(function(param,i){
+                var name=param.name;
+                var val=param.value;
+                var sp_name=document.createElement('span');
+                sp_name.className='sg_rule_params';
+                sp_name.innerHTML=name;
+                var tb_param=document.createElement('input');
+                tb_param.type='text';
+                tb_param.value=val;
+                tb_param.className='contents';
+                var tb_width='20px';
+                if (param.name=='divs') tb_width='80px';
+                if (param.name=='In' || param.name=='Out') tb_width='50px';
+                tb_param.style.width=tb_width;
+                tb_param.style.fontSize='10px';
+                tb_param.style.textAlign='Center';
+
+                container.appendChild(sp_name);
+                container.appendChild(tb_param);
+
+
+                tb_param.onkeydown=function (key) {
+                    // console.log('key code='+key.keyCode)
+                    if (key.keyCode==13){
+
+                        param.value=tb_param.value;
+                        console.log('param.val='+param.value +' tb_value='+tb_param.value)
+                        var txt=self.format();
+                        window.location='skp:set_rule_params@'+txt
+                        console.log(txt);
+                        // sample output:
+                        // '1|Flip|In:B;Out:B;axis:0;repeat:111'
+                    }
+                }//end on key down
+            })
+        }
+
+    }
+
+    Param=function(name,value){
+        this.name=name;
+        this.value=value;
+    }
+
+    create_ui=function(creationStr){
+        var table=document.getElementById('tb_grammar');
+        var contents=table.childNodes;
+        if (contents.length>0) contents.forEach(function(n){ table.removeChild(n) });
+
+        rules=creationStr.split('/')
+        gr=new Grammar('unnamed')
+        rules.forEach(function(r){
+            gr.add_rule(r)
+        })
+        gr.create_ui()
+
+    }
+    // gr=new Grammar('g1')
+    // gr.add_rule('Split|In:A,B;Out:B;divs:r0.3,0.4;axis:0;repeat:111')
+    // gr.add_rule('Flip|In:;Out:B;axis:0;repeat:111')
+    // gr.create_ui();
+</script>
+</html>

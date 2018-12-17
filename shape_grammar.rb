@@ -1,14 +1,79 @@
 require 'mesh_util'
 class Repeat
-  None=112
-  Last=111
-  Entire=222
+  None=111
+  Last=112
+  Entire=113
 end
 $sg_created_objects=[] if $sg_created_objects == nil
 
 
 
 module SG
+  class SGUI
+    def SGUI.create(grammar)
+      SGUI.open(grammar)
+      UI.start_timer(1,false){
+        SGUI.create_ui
+      }
+
+    end
+
+    def SGUI.open(grammar)
+
+      if grammar==nil
+        p "there is no selected grammar to open sgui"
+        return
+      end
+
+      # if $sgui!=nil
+      #   $sgui.close
+      # end
+      $sgui_subject=grammar
+      $sgui=UI::HtmlDialog.new({
+                                   :scrollable => true,
+                                   :resizable => true,
+                                   :min_width => 500,
+                                   :min_height => 100,
+                                   :style => UI::HtmlDialog::STYLE_DIALOG
+                               })
+      file=ArchProto.get_file_path('dialog/sg_ui.html')
+      $sgui.set_url(file)
+      $sgui.show()
+      $sgui.add_action_callback("set_rule_params"){|dialog,param|
+        # sample param:
+        # '1|Flip|In:B;Out:B;axis:0;repeat:111'
+        index,rname,params=param.split('|')
+        p "input string = #{param}"
+        p "index=#{index} rname=#{rname} params=#{params}"
+
+        index=index.to_i
+        g=$sgui_subject
+        rule=g.rules[index]
+        rule.set_params(params)
+        g.execute()
+        g.update_model()
+      }
+    end
+
+    def SGUI.create_ui()
+      return if $sgui_subject==nil
+
+      creationStr=''
+      counter=0
+      g=$sgui_subject
+      g.rules.each{|r|
+        creationStr+='/' if counter>0
+        creationStr+=r.format()
+        counter+=1
+      }
+
+
+      msg="create_ui('#{creationStr}')"
+      p "creation string = #{msg}"
+      $sgui.execute_script(msg)
+    end
+  end
+
   class Rule
     attr_accessor :inputs
     attr_accessor :outputs
@@ -18,6 +83,8 @@ module SG
     attr_accessor :out_names
     attr_accessor :params
     attr_accessor :name
+    attr_accessor :container
+    attr_accessor :containers
 
     def initialize(in_names=nil,out_names=nil)
       if in_names!=nil
@@ -36,7 +103,7 @@ module SG
       @inputs=[]
       @outputs=[]
       @unused=[]
-      @params=nil
+      @divs=nil
       @name='UNRule'
     end
 
@@ -60,6 +127,46 @@ module SG
         g=g.create_sgo
       end
       return g
+    end
+
+    def format()
+      txt="#{@name}|In:#{@in_names.to_s};Out:#{@out_names.to_s};#{format_params()}"
+      txt.gsub! '"',''
+      txt.gsub! '[',''
+      txt.gsub! ']',''
+      return txt
+    end
+
+    def format_params()
+      return ''
+    end
+  end
+
+  class RuleTemplateStd<SG::Rule
+    def initialize(in_names,out_names)
+      super(in_names,out_names)
+    end
+
+    def execute_geo(g)
+      #override this method
+    end
+
+    def execute()
+      @outputs=[]
+      @unused=[]
+      for g in @inputs
+        geoOutput=[]
+        if @in_names.include? g.name or @in_names.size==0
+          g=SG::Rule._extract_geo(g)
+          execute_geo(g)
+          geoOutput<<g
+        else
+          @unused<<g
+        end
+        assign_names(geoOutput)
+        @outputs+=geoOutput if geoOutput.size>0
+      end
+      @outputs+=@unused
     end
   end
 
@@ -121,7 +228,7 @@ module SG
         return [geometry]
       end
     end
-    p "divs=#{divs}"
+    # p "divs=#{divs}"
     return SG.split_length(geometry,divs,axis)
   end
 
@@ -233,6 +340,12 @@ module SG
     # geometry.anchor_flip(flipArray)
     return geometry
   end
+
+  def SG.anchor_rotate(geometry,rtimes)
+    geometry.anchor_rotate(rtimes)
+    return geometry
+
+  end
 end
 
 module SGRules
@@ -247,6 +360,7 @@ module SGRules
       @rules=[]
       @mode=0
       @name='UNGrammar'
+
     end
     def Grammar.create(geos=nil)
       if geos==nil
@@ -299,23 +413,40 @@ module SGRules
     end
 
     def update_individual_model()
-      if @contianers!=nil and @containers.size>0
-        @containers.each{|ct|
-          ct.delete!
-        }
-      end
-      @containers=[]
+      @containers=[] if @containers==nil
+      diff = @containers.size-@outputs.size
 
-      @outputs.each{|op|
-        @containers<< op.add_individual_model
-      }
+      if diff>0
+        del_count=0
+        diff.times{
+          g=@containers[-1]
+          g.erase!
+          @containers.delete(g)
+          del_count+=1
+        }
+        p "deleted #{del_count} groups"
+      end
+      prect_count=@containers.size
+      for i in 0..@outputs.size-1
+        output=@outputs[i]
+        if i<@containers.size
+          if @containers[i].valid?
+            output.add_individual_model(@containers[i])
+          else
+            @containers[i]=output.add_individual_model()
+          end
+        else
+          @containers <<output.add_individual_model()
+        end
+      end
+      p "outputs:#{@outputs.size} pre con:#{prect_count} post con:#{@containers.size} "
+
     end
 
     def update_model()
-
       # Sketchup.active_model.start_operation('add model',true,false,true)
 
-      if @container==nil
+      if @container==nil or !@container.valid?
         @container=Sketchup.active_model.entities.add_group()
       end
       # p "grammar.input.size=#{$g.inputs.size} output.size=#{$g.outputs.size}"
@@ -324,55 +455,118 @@ module SGRules
       # p "2 post clear container=#{@container} ents.size=#{@container.entities.size}"
 
       MeshUtil.add_geos_to_model(@outputs,@container,0)
-
       # Sketchup.active_model.commit_operation
       # p "3 post add_model container=#{@container} ents.size=#{@container.entities.size}"
     end
   end
 
-  class FlipAxis<SG::Rule
+  class RotAxis<SG::RuleTemplateStd
+    def initialize(in_names,out_names,rtimes)
+      super(in_names,out_names)
+      @rtimes=rtimes
+    end
+
+    def execute_geo(g)
+      g.anchor_rotation(@rtimes)
+    end
+  end
+
+  class FlipAxis<SG::RuleTemplateStd
     def initialize(in_names,out_names,fliparray)
       super(in_names,out_names)
       @fliparray=fliparray
     end
 
-    def execute()
-      for g in @inputs
-        geoOutput=[]
-        g=SG::Rule._extract_geo(g)
-        if @in_names.include? g.name or @in_names.size==0
-          SG.flip_axis(g,@fliparray)
-          geoOutput<<g
-        else
-          @unused<<g
-        end
-        assign_names(geoOutput)
-        @outputs+=geoOutput if geoOutput.size>0
-      end
+    def execute_geo(g)
+      SG.flip_axis(g,@fliparray)
+    end
 
-      @outputs+=@unused
-      # p "FlipAxis outputs count=#{@outputs.size}"
+    # def execute()
+    #   @outputs=[]
+    #   @unused=[]
+    #   for g in @inputs
+    #     geoOutput=[]
+    #     g=SG::Rule._extract_geo(g)
+    #     if @in_names.include? g.name or @in_names.size==0
+    #       SG.flip_axis(g,@fliparray)
+    #       geoOutput<<g
+    #     else
+    #       @unused<<g
+    #     end
+    #     assign_names(geoOutput)
+    #     @outputs+=geoOutput if geoOutput.size>0
+    #   end
+    #
+    #   @outputs+=@unused
+    #   # p "FlipAxis outputs count=#{@outputs.size}"
+    # end
+  end
+
+  class Remove<SG::Rule
+    def initialize(in_names)
+      super(in_names,nil)
+    end
+
+    def execute
+      @outputs=[]
+
+      for g in @inputs
+        if !@in_names.include? g.name
+          @outputs<<g
+        end
+      end
     end
   end
 
   class SplitEqual<SG::Rule
     def initialize(in_names,out_names,div,axis,stretch=true)
       super(in_names,out_names)
-      @params=div
+      @div=div
       @stretch=stretch
       @axis=axis
+      @name='SplitEq'
     end
+
+    def format_params()
+      # sample param:
+      # 'divs:r0.3,0.5,0.2;axis:0;repeat:111'
+      params="div:#{@div};axis:#{@axis};stretch:#{@stretch}"
+      return params
+    end
+
+    def set_params(paramStr)
+      p "seting param:#{paramStr}"
+      paramsStrs=paramStr.split(';')
+      in_names=paramsStrs[0].split(':')[1]
+      if in_names==nil
+        @in_names=''
+      else
+        @in_names=in_names.split(',')
+      end
+
+      out_names=paramsStrs[1].split(':')[1].split(',')
+      @div=paramsStrs[2].split(':')[1].to_f
+      @axis=paramsStrs[3].split(':')[1].to_i
+      if paramsStrs[4].split(':')[1]=='true'
+        @stretch=true
+      else
+        @stretch=false
+      end
+    end
+
+
+
 
     def execute()
       @unused=[]
       @outputs=[]
 
-      return if @inputs==nil or @inputs.size==0 or @params==nil
+      return if @inputs==nil or @inputs.size==0 or @div==nil
 
       for g in @inputs
         g=SG::Rule._extract_geo(g)
         if @in_names.include? g.name or @in_names.size==0
-          geos=SG.split_equal(g,@params,@stretch,@axis)
+          geos=SG.split_equal(g, @div, @stretch, @axis)
           assign_names(geos)
           @outputs+=geos if geos!=nil and geos.size>0
         else
@@ -397,7 +591,8 @@ module SGRules
       #               output: param:[30,40] mode:'length'
       #
       # mode can be 'length' or 'ratio'
-      @params,@mode=_interpret_divs(divs)
+      @divstring=divs
+      @divs,@mode=_interpret_divs(divs)
       # @in_names=in_names.split(',')
       # @out_names=out_names.split(',')
       @repeat=repeat
@@ -406,12 +601,38 @@ module SGRules
       @inverse=inverse
     end
 
+    def format_params()
+      # sample param:
+      # 'divs:r0.3,0.5,0.2;axis:0;repeat:111'
+      divsStr=@divs.to_s
+      divsStr='r'+divsStr if @mode=='ratio'
+      params="divs:#{divsStr};axis:#{@axis};repeat:#{@repeat}"
+
+      return params
+    end
+
+    def set_params(paramStr)
+      paramsStrs=paramStr.split(';')
+      in_names=paramsStrs[0].split(':')[1]
+      if in_names==nil
+        @in_names=''
+      else
+        @in_names=in_names.split(',')
+      end
+      @out_names=paramsStrs[1].split(':')[1].split(',')
+      divsStr=paramsStrs[2].split(':')[1]
+      @divs,@mode=_interpret_divs(divsStr)
+      @axis=paramsStrs[3].split(':')[1].to_i
+      @repeat=paramsStrs[4].split(':')[1].to_i
+    end
+
+
     def mode()
       return @mode
     end
 
     def execute()
-      return if @inputs==nil or @inputs.size==0 or @params==nil
+      return if @inputs==nil or @inputs.size==0 or @divs==nil
       repeat=@repeat
       inverse=@inverse
       @outputs=[]
@@ -421,21 +642,21 @@ module SGRules
         g=SG::Rule._extract_geo(g)
         if @in_names.include? g.name or @in_names.size==0
           if @mode=='length'
-            geos=SG.split_length(g,@params.clone,@axis,repeat,inverse)
+            geos=SG.split_length(g, @divs.clone, @axis, repeat, inverse)
           elsif @mode =='ratio'
             # p "split ratio divs=#{@params}"
-            geos=SG.split_ratio(g,@params.clone,@axis,repeat,inverse)
+            geos=SG.split_ratio(g, @divs.clone, @axis, repeat, inverse)
           else
             p "undefined mode:#{@mode}"
             raise ScriptError
           end
           if geos!=nil and geos.size!=nil and geos.size>0
             assign_names(geos)
-            txt="#{g.name}: "
-            geos.each{|g|
-              txt+="n:#{g.name} s:#{g.size[0].to_m.round}"
-            }
-            p txt
+            # txt="#{g.name}: "
+            # geos.each{|g|
+            #   txt+="n:#{g.name} s:#{g.size[0].to_m.round}"
+            # }
+            # p txt
             @outputs+=geos
           end
         else
@@ -513,11 +734,12 @@ class SGInvalidator
   end
 
   def invalidate(forced=false)
+
     sels=Sketchup.active_model.selection.to_a
     invalidated_grammars=[]
     for s in sels
       if is_ent_invalidated(s) or forced
-        # p "sg invalidator"
+        p "sgi invalidating: #{s}"
         for g in @grammars
           invalidated_grammars<<g if g.inputs.include? s and  !invalidated_grammars.include? g
           # g.execute if g.inputs.include? s
@@ -527,8 +749,8 @@ class SGInvalidator
 
     for g in invalidated_grammars
       g.execute
-      # g.update_model
-      g.update_individual_model
+      g.update_model
+      # g.update_individual_model
     end
     nil
   end
@@ -582,9 +804,9 @@ def sgtest
   $sgi=SGInvalidator.new
 
   $g1=SGRules::Grammar.create()
-  # $g1.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
+  $g1.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
   # $g1.add(SGRules::Split.new('A','B,A','r0.5',0))
-  $g1.add(SGRules::SplitEqual.new('','A,B',4,0,true))
+  $g1.add(SGRules::SplitEqual.new('A','A,B',4,0,true))
   $g1.add(SGRules::FlipAxis.new('B','A',[-1,1,1]))
   $g1.add(SGRules::Split.new('A','cord,A','1',0,Repeat::None))
   $g1.add(SGRules::Split.new('A','bath,main','3',1,Repeat::None,true))
@@ -592,19 +814,29 @@ def sgtest
   # $g1.update_model()
 
   $g2=SGRules::Grammar.create()
-  $g2.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
-  $g2.add(SGRules::Split.new('A','A,B','r0.5',0,Repeat::None))
-  $g2.add(SGRules::FlipAxis.new('B','A',[-1,1,1]))
-  $g2.add(SGRules::Split.new('A','B,C','r0.3',0))
+  # $g2.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
+  $g2.add(SGRules::Split.new('','A,B','r0.5',0,Repeat::None))
+  $g2.add(SGRules::RotAxis.new('B','A',-1))
+  $g2.add(SGRules::Split.new('A','C,D','r0.3',1))
   # $g2.add(SGRules::Split.new('A','cord,A','1',0,Repeat::None))
 
 
+  $g3=SGRules::Grammar.create()
+  $g3.add(SGRules::RotAxis.new('','A',1))
 
-  $sgi.add_grammar $g1
-  $sgi.add_range($g1.inputs)
+  $g4=SGRules::Grammar.create()
+  $g4.add(SGRules::SplitEqual.new('','A,B',4,0,true))
+  $g4.add(SGRules::Split.new('B','C,D','r0.3',1,Repeat::None))
+  # SG::SGUI.open($g4)
+  # SG::SGUI.create_ui()
+
+
+  $sgi.add_grammar $g4
+  $sgi.add_range($g4.inputs)
   $sgi.invalidate
 
   $sgi.reset_timer
+
   nil
 end
 

@@ -836,6 +836,8 @@ module SG
     attr_accessor :base_mesh
     attr_accessor :base_vect
     attr_accessor :name
+    attr_accessor :color
+    attr_accessor :material
 
     def SGObject.create(g=nil)
 
@@ -885,24 +887,29 @@ module SG
     def add_individual_model(g=nil)
       if g==nil
         g=Sketchup.active_model.entities.add_group
-        f=@anchor_reflection
-        # f=trans_reflection
-        flip=f[0]*f[1]*f[2]
-        # p "AF=#{@anchor_reflection} TF=#{trans_reflection} flip=#{flip} "
-        if flip<0
-          out_mesh=_flip_mesh_face(@base_mesh)
-        else
-          out_mesh=MeshUtil.clone_mesh @base_mesh
-        end
-        g.entities.add_faces_from_mesh(out_mesh,0)
-        g.transformation=@transformation
-        g.name=@name
-        return g
+      else
+        g.entities.clear!
       end
+
+      f=@anchor_reflection
+      # f=trans_reflection
+      flip=f[0]*f[1]*f[2]
+      # p "AF=#{@anchor_reflection} TF=#{trans_reflection} flip=#{flip} "
+      if flip<0
+        out_mesh=_flip_mesh_face(@base_mesh)
+      else
+        out_mesh=MeshUtil.clone_mesh @base_mesh
+      end
+      g.entities.add_faces_from_mesh(out_mesh,0)
+      g.transformation=@transformation
+      g.name=@name
+      return g
+
 
     end
 
     def add_model(container=nil)
+
       if container==nil
         container=Sketchup.active_model.entities.add_group
       end
@@ -915,6 +922,8 @@ module SG
       @anchor_reflection=[1,1,1]
       @base_vect=Geom::Vector3d.new(1,0,0)
       @name=''
+      @color=[255,255,255]
+      @material=nil
     end
 
     def set_anchor_reflection_values_only(reflection)
@@ -1069,6 +1078,55 @@ module SG
       return [x,y,z]
     end
 
+    def anchor_rotation(rtimes)
+      # times=0-3
+      # 0: no change
+      # 1: cw 90  degrees
+      # 2: cw 180 degrees
+      # 3: cw 270 degrees
+      # times>3 = times%3
+      sign=1
+      if rtimes<0
+        sign=-1
+      end
+      rtimes=rtimes.abs%3
+      a=90*sign
+      rtimes.times{|i|
+        g_ref,g_rot,g_scale=SGObject._reflection_rotation_size(@transformation)
+
+        trans_rot=Geom::Transformation.rotation([0,0,0],[0,0,1],a.degrees)
+        if sign>0
+          trans_move=Geom::Transformation.translation([1,0,0])
+          offsetvect=vects[1].clone
+          offsetvect.length=g_scale[1].abs
+        else
+          trans_move=Geom::Transformation.translation([0,1,0])
+          offsetvect=vects[0].clone
+          offsetvect.length=g_scale[0].abs
+        end
+
+        @base_mesh.transform! trans_rot
+        @base_mesh.transform! trans_move
+
+        p "vects=#{vects}"
+        p "g_scale=#{g_scale}"
+        t=g_scale[0]
+        g_scale[0]=g_scale[1]
+        g_scale[1]=t
+        p "g_scale=#{g_scale}"
+
+        p "offsetvect=#{offsetvect}"
+        rot=g_rot-a
+        # rot=g_rot
+        pos=position()+offsetvect
+        _update_transform(g_scale,rot,pos)
+      }
+
+
+
+
+    end
+
     def anchor_flip(val)
       # sample val: [-1,1,1]
       # this will flip the X axis
@@ -1112,14 +1170,15 @@ module SG
       # this method transform the base_mesh with it's transformation
       raise "base mesh is nil, check creation process" if @base_mesh==nil
       f=@anchor_reflection
-      # f=trans_reflection
+      # # f=trans_reflection
       flip=f[0]*f[1]*f[2]
       # p "AF=#{@anchor_reflection} TF=#{trans_reflection} flip=#{flip} "
-      if flip
-        out_mesh=_flip_mesh_face(@base_mesh)
-      else
-        out_mesh=MeshUtil.clone_mesh @base_mesh
-      end
+      # if flip<0
+      #   out_mesh=_flip_mesh_face(@base_mesh)
+      # else
+      #   out_mesh=MeshUtil.clone_mesh @base_mesh
+      # end
+      out_mesh=MeshUtil.clone_mesh @base_mesh
       out_mesh.transform! @transformation
       return out_mesh
     end
