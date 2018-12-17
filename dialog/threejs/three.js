@@ -16442,7 +16442,7 @@
 
 			if ( subscript === undefined || subscript === '[' && matchEnd + 2 === pathLength ) {
 
-				// bare name or "pure" bottom-level array "[0]" suffix
+				// bare name or "pure" bottom-level array "[0]" prefix
 
 				addUniform( container, subscript === undefined ?
 					new SingleUniform( id, activeInfo, addr ) :

@@ -125,8 +125,8 @@
                 tb_param.value=val;
                 tb_param.className='contents';
                 var tb_width='20px';
-                if (param.name=='divs') tb_width='80px';
-                if (param.name=='In' || param.name=='Out') tb_width='50px';
+                if (param.name=='divs' ) tb_width='80px';
+                if (param.name=='In' || param.name=='Out' || param.name=='flip') tb_width='50px';
                 tb_param.style.width=tb_width;
                 tb_param.style.fontSize='10px';
                 tb_param.style.textAlign='Center';
@@ -148,6 +148,56 @@
                         // '1|Flip|In:B;Out:B;axis:0;repeat:111'
                     }
                 }//end on key down
+
+                tb_param.addEventListener("wheel",function(e){
+                    var val=tb_param.value;
+                    if (!val.includes(',') && !param.name.includes('xis')){
+                        if (!val.includes('r')){
+                            num=parseFloat(val)
+                            prefix=''
+                        }
+                        else{
+                            str=tb_param.value.replace('r','')
+                            num=parseFloat(str)
+                            prefix='r'
+                        }
+
+                        if(!isNaN(num)){
+                            if(e.wheelDelta>0) num=num*1.1
+                            else num=num*0.9
+
+                            num*=100
+                            num=Math.round(num)
+                            num/=100
+                            tb_param.value=prefix + String(num)
+                        }
+                        param.value=tb_param.value;
+                        var txt=self.format();
+                        window.location='skp:set_rule_params@'+txt
+                    }
+                    else if (param.name.includes('axis')){
+                        num=parseFloat(val)
+                        if(e.wheelDelta>0) num+=1
+                        else num-=1
+                        num=num%3
+                        tb_param.value=num;
+                        param.value=tb_param.value;
+                        var txt=self.format();
+                        window.location='skp:set_rule_params@'+txt
+                    }
+                    else if (param.name.includes('rotAxis')){
+                        num=parseFloat(val)
+                        if(e.wheelDelta>0) num+=1
+                        else num-=1
+                        num=num%4
+                        tb_param.value=num;
+                        param.value=tb_param.value;
+                        var txt=self.format();
+                        window.location='skp:set_rule_params@'+txt
+                    }
+                })
+
+
             })
         }
 

@@ -140,6 +140,17 @@ module SG
     def format_params()
       return ''
     end
+    def set_params(paramStr)
+      paramsStrs=paramStr.split(';')
+      in_names=paramsStrs[0].split(':')[1]
+      if in_names==nil
+        @in_names=''
+      else
+        @in_names=in_names.split(',')
+      end
+
+      out_names=paramsStrs[1].split(':')[1].split(',')
+    end
   end
 
   class RuleTemplateStd<SG::Rule
@@ -464,10 +475,22 @@ module SGRules
     def initialize(in_names,out_names,rtimes)
       super(in_names,out_names)
       @rtimes=rtimes
+      @name='RotAxis'
     end
 
     def execute_geo(g)
       g.anchor_rotation(@rtimes)
+    end
+
+    def set_params(paramStr)
+      super(paramStr)
+      paramStrs=paramStr.split(';')
+      @rtimes=paramStrs[2].split(':')[1].to_i
+    end
+
+    def format_params()
+      txt="rotAxis:#{@rtimes}"
+      return txt
     end
   end
 
@@ -475,31 +498,30 @@ module SGRules
     def initialize(in_names,out_names,fliparray)
       super(in_names,out_names)
       @fliparray=fliparray
+      @name='FlipAxis'
     end
 
     def execute_geo(g)
       SG.flip_axis(g,@fliparray)
     end
 
-    # def execute()
-    #   @outputs=[]
-    #   @unused=[]
-    #   for g in @inputs
-    #     geoOutput=[]
-    #     g=SG::Rule._extract_geo(g)
-    #     if @in_names.include? g.name or @in_names.size==0
-    #       SG.flip_axis(g,@fliparray)
-    #       geoOutput<<g
-    #     else
-    #       @unused<<g
-    #     end
-    #     assign_names(geoOutput)
-    #     @outputs+=geoOutput if geoOutput.size>0
-    #   end
-    #
-    #   @outputs+=@unused
-    #   # p "FlipAxis outputs count=#{@outputs.size}"
-    # end
+    def set_params(paramStr)
+      super(paramStr)
+      paramStrs=paramStr.split(';')
+      fliparraystrs=paramStrs[2].split(':')[1].split(',')
+      @fliparray=[]
+      fliparraystrs.each{|s|
+        @fliparray<<s.to_f
+      }
+
+    end
+
+    def format_params()
+      txt="flip:#{@fliparray}"
+      txt.gsub! '[',''
+      txt.gsub! ']',''
+      return txt
+    end
   end
 
   class Remove<SG::Rule
@@ -516,6 +538,15 @@ module SGRules
         end
       end
     end
+
+    def set_params(paramStr)
+      super.set_params(paramStr)
+    end
+
+    def format_params()
+      return ''
+    end
+
   end
 
   class SplitEqual<SG::Rule
@@ -535,16 +566,8 @@ module SGRules
     end
 
     def set_params(paramStr)
-      p "seting param:#{paramStr}"
+      super(paramStr)
       paramsStrs=paramStr.split(';')
-      in_names=paramsStrs[0].split(':')[1]
-      if in_names==nil
-        @in_names=''
-      else
-        @in_names=in_names.split(',')
-      end
-
-      out_names=paramsStrs[1].split(':')[1].split(',')
       @div=paramsStrs[2].split(':')[1].to_f
       @axis=paramsStrs[3].split(':')[1].to_i
       if paramsStrs[4].split(':')[1]=='true'
@@ -612,14 +635,8 @@ module SGRules
     end
 
     def set_params(paramStr)
+      super(paramStr)
       paramsStrs=paramStr.split(';')
-      in_names=paramsStrs[0].split(':')[1]
-      if in_names==nil
-        @in_names=''
-      else
-        @in_names=in_names.split(',')
-      end
-      @out_names=paramsStrs[1].split(':')[1].split(',')
       divsStr=paramsStrs[2].split(':')[1]
       @divs,@mode=_interpret_divs(divsStr)
       @axis=paramsStrs[3].split(':')[1].to_i
@@ -814,15 +831,13 @@ def sgtest
   # $g1.update_model()
 
   $g2=SGRules::Grammar.create()
-  # $g2.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
+  $g2.add(SGRules::FlipAxis.new('','A',[1,-1,1]))
   $g2.add(SGRules::Split.new('','A,B','r0.5',0,Repeat::None))
   $g2.add(SGRules::RotAxis.new('B','A',-1))
   $g2.add(SGRules::Split.new('A','C,D','r0.3',1))
   # $g2.add(SGRules::Split.new('A','cord,A','1',0,Repeat::None))
 
 
-  $g3=SGRules::Grammar.create()
-  $g3.add(SGRules::RotAxis.new('','A',1))
 
   $g4=SGRules::Grammar.create()
   $g4.add(SGRules::SplitEqual.new('','A,B',4,0,true))
@@ -831,9 +846,10 @@ def sgtest
   # SG::SGUI.create_ui()
 
 
-  $sgi.add_grammar $g4
-  $sgi.add_range($g4.inputs)
+  $sgi.add_grammar $g2
+  $sgi.add_range($g2.inputs)
   $sgi.invalidate
+  SG::SGUI.create $g2
 
   $sgi.reset_timer
 
