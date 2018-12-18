@@ -1045,6 +1045,8 @@ module SG
       _update_transform(s,r,p)
     end
 
+
+
     def reflection
       return @anchor_reflection
     end

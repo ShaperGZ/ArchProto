@@ -14,6 +14,7 @@ module SG
       SGUI.open(grammar)
       UI.start_timer(1,false){
         SGUI.create_ui
+        SGUI.create_variables
       }
 
     end
@@ -39,12 +40,23 @@ module SG
       file=ArchProto.get_file_path('dialog/sg_ui.html')
       $sgui.set_url(file)
       $sgui.show()
+      $sgui.add_action_callback("set_variables"){|dialog,param|
+        # sample str:
+        # 'a:12,b:13'
+        g=$sgui_subject
+        nv=param.split(':')
+        # p "1 param=#{param} setting[#{nv[0]}] to #{nv[1]}"
+        g.variables[nv[0]]=nv[1].to_f
+        # p "2 param=#{param} setting[#{nv[0]}] to #{g.variables[nv[0]]}"
+        g.execute()
+        g.update_model()
+      }
       $sgui.add_action_callback("set_rule_params"){|dialog,param|
         # sample param:
         # '1|Flip|In:B;Out:B;axis:0;repeat:111'
         index,rname,params=param.split('|')
-        p "input string = #{param}"
-        p "index=#{index} rname=#{rname} params=#{params}"
+        # p "input string = #{param}"
+        # p "index=#{index} rname=#{rname} params=#{params}"
 
         index=index.to_i
         g=$sgui_subject
@@ -55,6 +67,22 @@ module SG
       }
     end
 
+    def SGUI.create_variables()
+      return if $sgui_subject==nil
+      creationStr=''
+      counter=0
+      g=$sgui_subject
+      g.variables.keys.each{|k|
+        name=k
+        val=g.variables[k]
+        creationStr = creationStr + ',' if counter>0
+        creationStr+="#{name}:#{val}"
+        counter+=1
+      }
+      msg="create_variables('#{creationStr}')"
+      p "create_variables string = #{msg}"
+      $sgui.execute_script(msg)
+    end
     def SGUI.create_ui()
       return if $sgui_subject==nil
 
@@ -85,6 +113,7 @@ module SG
     attr_accessor :name
     attr_accessor :container
     attr_accessor :containers
+    attr_accessor :parent
 
     def initialize(in_names=nil,out_names=nil)
       if in_names!=nil
@@ -100,11 +129,26 @@ module SG
       end
 
       @container=nil
+      @parent=nil
       @inputs=[]
       @outputs=[]
       @unused=[]
       @divs=nil
       @name='UNRule'
+    end
+
+    def solve(txt)
+      b=binding
+      var_names=txt.gsub(/[^a-z]/,',')
+      var_names=var_names.split(',')
+      var_names.each{|v|
+        next if v==nil
+        line="#{v}=parent.variables['#{v}']"
+        # p "execute: #{line}"
+        eval(line,b)
+      }
+      return eval(txt,b)
+
     end
 
     def execute()
@@ -267,7 +311,7 @@ module SG
       divs[i]/=ttl
     end
     # p "post normalize divs=#{divs}"
-    normal=basevect
+    normal=basevect.normalize
     origin=Geom::Point3d.new(0,0,0)
     af=geometry.reflection
     mesh=geometry.base_mesh
@@ -355,7 +399,18 @@ module SG
   def SG.anchor_rotate(geometry,rtimes)
     geometry.anchor_rotate(rtimes)
     return geometry
+  end
 
+  def SG.extend(geometry,distance,axis=0)
+    size=geometry.size().clone
+    # p "pre extend size=#{size} distance=#{distance}"
+
+    dmnt=size[axis].abs
+    scale=(dmnt + distance.m)/dmnt
+    size[axis]*=scale
+    # p "pre extend size=#{size}"
+    geometry.size=size
+    return geometry
   end
 end
 
@@ -365,13 +420,15 @@ module SGRules
     attr_accessor :rules
     attr_accessor :container
     attr_accessor :mode #0 add to single mode, 1 add to individual models
+    attr_accessor :variables
+
     def initialize()
       super()
       @container=nil
       @rules=[]
       @mode=0
       @name='UNGrammar'
-
+      @variables={}
     end
     def Grammar.create(geos=nil)
       if geos==nil
@@ -388,7 +445,12 @@ module SGRules
     end
 
     def add(rule)
+      rule.parent=self
       @rules<<rule
+    end
+
+    def v(name, val)
+      @variables[name]=val
     end
 
     def execute(start=0)
@@ -402,21 +464,6 @@ module SGRules
           rule.inputs=last_output
         end
         rule.execute()
-        # p "exe[#{i}]#{rule.name} ins:#{rule.inputs.size} outs:#{rule.outputs.size}"
-        # rule.outputs.each{|o|
-        #   # p "o.name=#{o.name}"
-        # }
-        # p "#{rule.in_names}->#{rule.out_names}"
-        # p "exe[#{i}] inputs:#{rule.inputs.size} outputs:#{rule.outputs.size}"
-        # p "inputs:"
-        # for i in 0..rule.inputs.size-1
-        #   p "inputs[#{i}]:#{rule.inputs[i].name}"
-        # end
-        # p "outputs:"
-        # for i in 0..rule.outputs.size-1
-        #   p "outputs[#{i}]:#{rule.outputs[i].name}"
-        # end
-
         last_output=rule.outputs
       end
       @outputs=last_output
@@ -469,6 +516,38 @@ module SGRules
       # Sketchup.active_model.commit_operation
       # p "3 post add_model container=#{@container} ents.size=#{@container.entities.size}"
     end
+  end
+
+  class Extend<SG::RuleTemplateStd
+    def initialize(in_names,out_names,dist,axis)
+      super(in_names,out_names)
+      @axis=axis
+      @dist=dist
+      @name='Extend'
+    end
+
+    def execute_geo(g)
+      if @dist.is_a? String
+        dist=solve(@dist)
+      else
+        dist=@dist
+      end
+      SG.extend(g,dist,@axis)
+    end
+
+    def set_params(paramStr)
+      super(paramStr)
+      paramStrs=paramStr.split(';')
+      @dist=paramStrs[2].split(':')[1]
+      @axis=paramStrs[3].split(':')[1].to_i
+
+    end
+
+    def format_params()
+      txt="dist:#{@dist};axis:#{@axis}"
+      return txt
+    end
+
   end
 
   class RotAxis<SG::RuleTemplateStd
@@ -553,6 +632,7 @@ module SGRules
     def initialize(in_names,out_names,div,axis,stretch=true)
       super(in_names,out_names)
       @div=div
+
       @stretch=stretch
       @axis=axis
       @name='SplitEq'
@@ -568,7 +648,7 @@ module SGRules
     def set_params(paramStr)
       super(paramStr)
       paramsStrs=paramStr.split(';')
-      @div=paramsStrs[2].split(':')[1].to_f
+      @div=solve(paramsStrs[2].split(':')[1])
       @axis=paramsStrs[3].split(':')[1].to_i
       if paramsStrs[4].split(':')[1]=='true'
         @stretch=true
@@ -586,10 +666,16 @@ module SGRules
 
       return if @inputs==nil or @inputs.size==0 or @div==nil
 
+      if @div.is_a? String
+        div=solve(@div)
+      else
+        div=@div
+      end
+
       for g in @inputs
         g=SG::Rule._extract_geo(g)
         if @in_names.include? g.name or @in_names.size==0
-          geos=SG.split_equal(g, @div, @stretch, @axis)
+          geos=SG.split_equal(g, div, @stretch, @axis)
           assign_names(geos)
           @outputs+=geos if geos!=nil and geos.size>0
         else
@@ -615,7 +701,8 @@ module SGRules
       #
       # mode can be 'length' or 'ratio'
       @divstring=divs
-      @divs,@mode=_interpret_divs(divs)
+      @divs=divs
+
       # @in_names=in_names.split(',')
       # @out_names=out_names.split(',')
       @repeat=repeat
@@ -627,8 +714,8 @@ module SGRules
     def format_params()
       # sample param:
       # 'divs:r0.3,0.5,0.2;axis:0;repeat:111'
-      divsStr=@divs.to_s
-      divsStr='r'+divsStr if @mode=='ratio'
+      divsStr=@divs
+      # divsStr='r'+divsStr if @mode=='ratio'
       params="divs:#{divsStr};axis:#{@axis};repeat:#{@repeat}"
 
       return params
@@ -637,8 +724,7 @@ module SGRules
     def set_params(paramStr)
       super(paramStr)
       paramsStrs=paramStr.split(';')
-      divsStr=paramsStrs[2].split(':')[1]
-      @divs,@mode=_interpret_divs(divsStr)
+      @divs=paramsStrs[2].split(':')[1]
       @axis=paramsStrs[3].split(':')[1].to_i
       @repeat=paramsStrs[4].split(':')[1].to_i
     end
@@ -655,14 +741,17 @@ module SGRules
       @outputs=[]
       @unused=[]
       count=0
+
+      divs,mode=_interpret_divs(@divs)
       for g in @inputs
         g=SG::Rule._extract_geo(g)
         if @in_names.include? g.name or @in_names.size==0
-          if @mode=='length'
-            geos=SG.split_length(g, @divs.clone, @axis, repeat, inverse)
-          elsif @mode =='ratio'
+          if mode=='length'
+            # p "at split(), divs=#{divs}"
+            geos=SG.split_length(g, divs.clone, @axis, repeat, inverse)
+          elsif mode =='ratio'
             # p "split ratio divs=#{@params}"
-            geos=SG.split_ratio(g, @divs.clone, @axis, repeat, inverse)
+            geos=SG.split_ratio(g, divs.clone, @axis, repeat, inverse)
           else
             p "undefined mode:#{@mode}"
             raise ScriptError
@@ -695,7 +784,7 @@ module SGRules
 
       trunks=strdivs.split(',')
       trunks.each{|s|
-        divs<<s.to_f
+        divs<<solve(s)
       }
       return divs,mode
     end
@@ -737,7 +826,7 @@ class SGInvalidator
     rescue
     end
 
-    $sgi_timer=UI.start_timer(0.01,true){
+    $sgi_timer=UI.start_timer(1,true){
       begin
         invalidate
       rescue
@@ -751,7 +840,7 @@ class SGInvalidator
   end
 
   def invalidate(forced=false)
-
+    $sg_busy=true
     sels=Sketchup.active_model.selection.to_a
     invalidated_grammars=[]
     for s in sels
@@ -769,6 +858,7 @@ class SGInvalidator
       g.update_model
       # g.update_individual_model
     end
+    $sg_busy=false
     nil
   end
 
@@ -840,16 +930,19 @@ def sgtest
 
 
   $g4=SGRules::Grammar.create()
-  $g4.add(SGRules::SplitEqual.new('','A,B',4,0,true))
-  $g4.add(SGRules::Split.new('B','C,D','r0.3',1,Repeat::None))
+  $g4.v('udeptha', 2)
+  $g4.v('udepthb', 5)
+  $g4.v('ratio', 0.3)
+  $g4.add(SGRules::SplitEqual.new('','A,B','udeptha',0,true))
+  $g4.add(SGRules::Split.new('B','C,D','rratio',1,Repeat::None))
   # SG::SGUI.open($g4)
   # SG::SGUI.create_ui()
 
 
-  $sgi.add_grammar $g2
-  $sgi.add_range($g2.inputs)
+  $sgi.add_grammar $g4
+  $sgi.add_range($g4.inputs)
   $sgi.invalidate
-  SG::SGUI.create $g2
+  SG::SGUI.create $g4
 
   $sgi.reset_timer
 

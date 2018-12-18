@@ -28,20 +28,6 @@ class SW_Composition < Switchers
 
         max=eval(line[1],b)
         min=eval(line[2],b)
-        # strs=line[1].split('=')
-        # if strs.size==2
-        #   local_variables<<strs[0].to_sym # => [:_, :t]
-        #   max=eval(strs[1])
-        # else
-        #   max=eval(strs[0])
-        # end
-        # strs=line[2].split('=')
-        # if strs.size==2
-        #   local_variables<<strs[0].to_sym # => [:_, :t]
-        #   min=eval(strs[1])
-        # else
-        #   min=eval(strs[0])
-        # end
 
         addi=line[3]
         if addi=='nil'

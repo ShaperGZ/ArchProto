@@ -3,11 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
-    <table id="tb_grammar">
-
-    </table>
+    <link rel="stylesheet" type="text/css"href="ArchProto.css">
 </head>
 <body>
+<span class="titles">Variables:</span>
+<div id="dv_vars">
+    <table id="table_vars">
+
+    </table>
+</div>
+<span class="titles">Rules:</span>
+<div id="dv_rules">
+    <table id="table_grammar">
+
+    </table>
+</div>
 
 </body>
 <style>
@@ -46,7 +56,7 @@
         }
         this.create_ui=function(){
 
-            var table=document.getElementById('tb_grammar')
+            var table=document.getElementById('table_grammar')
             var tbody=document.createElement('tbody')
             table.appendChild(tbody)
 
@@ -124,10 +134,14 @@
                 tb_param.type='text';
                 tb_param.value=val;
                 tb_param.className='contents';
-                var tb_width='20px';
-                if (param.name=='divs' ) tb_width='80px';
-                if (param.name=='In' || param.name=='Out' || param.name=='flip') tb_width='50px';
-                tb_param.style.width=tb_width;
+                var tb_width=20;
+                if (param.name=='divs' ) tb_width=80;
+                if (param.name=='In' || param.name=='Out' || param.name=='flip') tb_width=50;
+
+                var minwidth=(val.length*6)
+                if (tb_width<minwidth) tb_width=minwidth
+
+                tb_param.style.width=tb_width+'px';
                 tb_param.style.fontSize='10px';
                 tb_param.style.textAlign='Center';
 
@@ -209,7 +223,7 @@
     }
 
     create_ui=function(creationStr){
-        var table=document.getElementById('tb_grammar');
+        var table=document.getElementById('table_grammar');
         var contents=table.childNodes;
         if (contents.length>0) contents.forEach(function(n){ table.removeChild(n) });
 
@@ -220,6 +234,60 @@
         })
         gr.create_ui()
 
+    }
+
+    create_variables=function(creationStr){
+        // sample str:
+        // 'a:12,b:13'
+        console.log("creating variables")
+        var table=document.getElementById('table_vars')
+        var tbody=document.createElement('tbody')
+        table.appendChild(tbody)
+
+        var strs=creationStr.split(',')
+
+        strs.forEach(function(nvstr){
+            var nv=nvstr.split(':')
+            var tr=document.createElement('tr')
+            var td_name=document.createElement('td')
+            var td_val=document.createElement('td')
+            var sp_name=document.createElement('span')
+            var tb_val=document.createElement('input')
+
+            tbody.appendChild(tr)
+            tr.appendChild(td_name)
+            tr.appendChild(td_val)
+            td_name.appendChild(sp_name)
+            td_val.appendChild(tb_val)
+
+            sp_name.innerHTML=nv[0]
+            tb_val.value=nv[1]
+
+            sp_name.className='contents'
+            tb_val.className='contents'
+
+            var name=nv[0]
+            tb_val.onkeydown=function(e){
+                if (e.keyCode==13){
+                    paramtxt=name+':'+tb_val.value;
+                    window.location='skp:set_variables@'+paramtxt
+                }
+            }
+
+            tb_val.addEventListener("wheel",function(e){
+                num=parseFloat(tb_val.value)
+                if(e.wheelDelta>0) num=num*1.1
+                else num=num*0.9
+
+                num= Math.round(num*100)/100
+
+                tb_val.value=num
+                paramtxt=name+":"+num
+                console.log(paramtxt)
+                window.location='skp:set_variables@'+paramtxt
+            })
+
+        })
     }
     // gr=new Grammar('g1')
     // gr.add_rule('Split|In:A,B;Out:B;divs:r0.3,0.4;axis:0;repeat:111')
