@@ -18,16 +18,18 @@ class BH_Apt_Area < Arch::BlockUpdateBehaviour
     _reset_values
     composition=@host.get_updator_by_type(BH_Apt_Composition)
     evacuation=@host.get_updator_by_type(BH_Evacuation)
-    abs_geo=composition.abstract_geometries
-    abs_geo+=evacuation.abstract_geometries
-    for g in abs_geo
+    abs_geo_comp=composition.abstract_geometries
+    abs_geo_evac=evacuation.abstract_geometries
+    for g in abs_geo_comp
       if g.name[0]=='O'
         @area_occupy+=g.area.to_m.to_m
       end
       if g.name[0]=='C'
         @area_corridor+=g.area.to_m.to_m
       end
-      if g.name=='MK_STAIR'
+    end
+    for g in abs_geo_evac
+      if g.name[0]=='C'
         @area_evac_vert+=(3*7)
       end
     end

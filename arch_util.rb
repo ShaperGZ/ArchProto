@@ -65,21 +65,29 @@ module ArchUtil
     return g0
   end
 
+  def ArchUtil.formatVm(str,v)
+    return "#{str}#{[v[0].to_m,v[1].to_m,v[2].to_m]}"
+  end
   
 
   def ArchUtil.point_in_plane_front(point,plane)
+    # 0=on plne
+    # 1=in plane front
+    # 2=in plane back
     point = Geom::Point3d.new(point) if point.is_a? Array
+    # p "plane:#{plane}"
     cp=point.project_to_plane(plane)
     dist = point.distance_to_plane(plane)
     return false if dist == 0.0
     vect=point-cp
+    return 0 if vect.length==0
     vect.length=1
     dist=point.distance_to_plane(plane)
     if dist>0 and vect==plane[1]
-      return true
+      return 1
     end
 
-    return false
+    return 2
   end
 
   def ArchUtil.intersect(g1,g2,container)

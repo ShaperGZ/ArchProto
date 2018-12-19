@@ -5,6 +5,7 @@
     <title>Prototype</title>
     <link rel="stylesheet" type="text/css"href="ArchProto.css">
     <script src="d3.js"></script>
+
     <script src="chart_AptScore.js"></script>
     <script src="jsChart.js"></script>
 </head>
@@ -49,14 +50,35 @@
                 </th>
                 <!--view modes-->
                 <th>
-                    <table id="view_mode_bt_container">
+                    <!--<table id="view_mode_bt_container">-->
+                    <!--</table>-->
+                    <table>
+                        <tb>
+                            <tr>
+                                <td><span class="contents" id="itsp_bd_width">bd_w</span></td>
+                                <td><span class="contents" id="itsp_bd_depth">bd_d</span></td>
+                                <td><span class="contents" id="itsp_bd_height">bd_h</span></td>
+                                <td><span class="contents" id="itsp_un_width">un_w</span></td>
+                                <td><span class="contents" id="itsp_un_depth">un_d</span></td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" id="ittb_bd_width" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_bd_depth" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_bd_height" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_un_width" style="width: 20px"></td>
+                                <td><input type="text" id="ittb_un_depth" style="width: 20px"></td>
+
+                            </tr>
+                        </tb>
                     </table>
                 </th>
             </tr>
 
         </tbody>
     </table>
+    <div id="threejs_container"></div>
     <div style="overflow-y: scroll; width:260px; height:500px;">
+        <div id = "selection_table"></div>
         <div id="attribute_table"></div>
     </div>
 </form>
@@ -209,6 +231,12 @@
         strs.forEach(function(s){
             kv=s.split("=>");
             data.push({"name":kv[0],"value":kv[1]});
+
+            id="ittb_"+kv[0]
+            dom=document.getElementById(id)
+            if (dom!=null){
+                dom.value=kv[1]
+            }
         });
 
 
@@ -329,11 +357,8 @@
             td.appendChild(bt);
             tr.appendChild(td);
         }
-
-
-
-
     }
+
 
     function viewMode_Norm(){
         console.log("normal mode")
@@ -351,52 +376,28 @@
         window.location='skp:log@'+msg
     }
 
-    function update_model_from_ui(){
-        console.log('update_model_from_ui')
-        skp_log("update model from ui")
-        // 1 fetch checkbox states
-        //   example data:
-        //   'cb_double=>true,cb_L-shape=>true'
-        checkIds=['cb_double','cb_L-shape','cb_U-shape','cb_O-shape']
-        params=""
-        for(var i in checkIds){
-            id=checkIds[i]
-            var cb= document.getElementById(id);
-            value=cb.checked;
-            params += id + '=>' + value.toString() + ','
-        }
-        var msg='skp:set_check_boxes@'+params
-        console.log(msg)
-        window.location.assign(msg);
-
-        // 2 fetch BuildingBlox textbox (tableBB) states
-        var strdata=""
-        var trs=tableBB.table.getElementsByTagName("tr")
-        // console.log("trs.length="+trs.length)
-        for(var i=0;i<trs.length;i++){
-            var tr=trs[i]
-            var span=tr.getElementsByTagName("span")[0]
-            var input=tr.getElementsByTagName("input")[0]
-            var name=span.innerHTML;
-            var value=input.value
-            strdata+=name+"=>"+value+";"
-        }
-        var msg='skp:set_gp_attributes@'+strdata;
-        // console.log(msg)
-        window.location.assign(msg);
-
-        // 3 invalidate model
-        msg='skp:invalidate_model@';
-        window.location.assign(msg);
-        window.location.assign('skp:log@this is the last line')
-    }
 
     function set_gp_attributes_on_value_entry(name,value){
         // when "enter" is pressed, record ALL values on the table
         // and send them to skp
         // the function input "name,value" becomes useless
+        set_gp_attributes();
 
+    }
+
+    function set_gp_attributes()
+    {
         var strdata=""
+        // var selects=document.getElementsByTagName('select')
+        // console.log('-------------getting select values------')
+        // console.log('select.length='+selects.length)
+        // for(var i=0;i<selects.length;i++)
+        // {
+        //     var s=selects[i];
+        //     strdata+=s.id+"=>"+s.value+";";
+        //     console.log(s.id+"=>"+s.value);
+        // }
+        console.log('-------------end getting select values--')
         var trs=tableBB.table.getElementsByTagName("tr")
         console.log("trs.length="+trs.length)
         for(var i=0;i<trs.length;i++){
@@ -408,9 +409,52 @@
             strdata+=name+"=>"+value+";"
         }
 
+
         var msg='skp:set_gp_attributes@'+strdata;
         console.log(msg)
         window.location=msg;
+    }
+
+    function listen_to_dimension_inputs()
+    {
+        ids=["ittb_bd_width","ittb_bd_depth","ittb_bd_height","ittb_un_width","ittb_un_depth"]
+        ids.forEach(function(id){
+            var input=document.getElementById(id)
+            input.className="contents"
+            input.size=1;
+            // input.min=0.1;
+            // input.max=1.9;
+            input.step=0.1;
+            input.onkeydown=function(key){
+
+                if (key.keyCode == "13"){
+                    var val= parseFloat(input.value)
+                    bbid=id.replace("ittb","tb")
+                    var dom=document.getElementById(bbid)
+                    dom.value=val
+                    set_gp_attributes_on_value_entry(0,0);
+                }
+            }
+            input.addEventListener("wheel",function(e){
+                var val= parseFloat(input.value)
+
+                var offset=0.5
+                if (id.indexOf("bd")>=0){
+                    offset=3
+                }
+
+
+                if(e.wheelDelta>0)
+                    val+=offset;
+                else if(e.wheelDelta<0)
+                    val-=offset;
+                input.value=val;
+                bbid=id.replace("ittb","tb")
+                var dom=document.getElementById(bbid)
+                dom.value=val
+                set_gp_attributes_on_value_entry(0,0);
+            });
+        })
     }
 
     // tabeBBContainer=document.getElementById("attribute_table");
@@ -419,9 +463,26 @@
     tableBB=new TableSpanInput(document.getElementById("attribute_table"));
     tableBB.onValueChange=set_gp_attributes_on_value_entry;
 
-
     gen_score_ratio_sliders()
-    gen_view_mode_buttons()
+    listen_to_dimension_inputs()
+    // gen_view_mode_buttons()
+
+
 </script>
+<script src="selectionTable.js"></script>
+<script src="threejs/three.js"></script>
+<!--<script src="threejs/controls/DragControls.js"></script>-->
+<!--<script src="threejs/controls/TrackballControls.js"></script>-->
+<script src="threejs/controls/OrbitControls.js"></script>
+<script src="threejs/postprocessing/EffectComposer.js"></script>
+<script src="threejs/postprocessing/RenderPass.js"></script>
+<script src="threejs/postprocessing/ShaderPass.js"></script>
+<script src="threejs/postprocessing/SAOPass.js"></script>
+
+<script src="threejs/shaders/CopyShader.js"></script>
+<script src="threejs/shaders/SAOShader.js"></script>
+<script src="threejs/shaders/DepthLimitedBlurShader.js"></script>
+<script src="threejs/shaders/UnpackDepthRGBAShader.js"></script>
+<script src="threejsViewer.js"></script>
 </body>
 </html>

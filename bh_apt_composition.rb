@@ -53,7 +53,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
 
     t1=Time.now
     gen_composition
-    _add_all_abs_to_one
+    # _add_all_abs_to_one
     t2=Time.now
     p "Bh_Apt_Composition.invalidate took #{t2-t1} seconds"
 
@@ -91,7 +91,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       # Straight double loaded
       #   1. occupy
       rw = un_depth
-      p1 = local_bounds.min
+      p1 = local_bounds.min.to_m
       s1 = [bd_width, un_depth, bd_height]
       create_geometry("O1",p1,s1)
 
@@ -201,7 +201,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       offd=un_depth+circulation_w
       p6 = p5 + Geom::Vector3d.new(offd,0,0)
       s6 = [w,d,bd_height]
-      create_geometry("O4",p6,s6,90,[-1,1,1])
+      create_geometry("O4",p6,s6,-90,[1,-1,1])
 
       #   3. flank occupy
       w = bd_width-offd*2
@@ -232,7 +232,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       py=(un_depth*2)+circulation_w
       p9 = Geom::Vector3d.new(px, py,0)
       s9 = [w,d,bd_height]
-      create_geometry("O6",p9,s9,-90,[-1,1,1])
+      create_geometry("O6",p9,s9,90,[1,-1,1])
 
 
     elsif @compositions['L-shape']
@@ -270,7 +270,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       offd=un_depth+circulation_w
       p6 = p5 + Geom::Vector3d.new(offd,0,0)
       s6 = [w,d,bd_height]
-      create_geometry("O4",p6,s6,90,[-1,1,1])
+      create_geometry("O4",p6,s6,-90,[1,-1,1])
 
       #   3. flank occupy
       w = bd_width-offd

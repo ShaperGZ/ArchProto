@@ -84,6 +84,21 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
         gp.set_attribute("OperableStates","composition",vals)
         invalidate_model
       }
+      @dlg.add_action_callback("selection_changed"){|dialog,params|
+        # sample js source @title;value
+        params=params.split(';')
+        key=params[0]
+        val=params[1]
+        gp=@subjectGP
+        gp.set_attribute("OperableStates",key,val)
+        # update unit type
+        if key=='sl_unit_type'
+          unwidth,undepth=_extract_unit_size(val)
+          gp.set_attribute("BuildingBlock","un_depth",undepth)
+          gp.set_attribute("BuildingBlock","un_width",unwidth)
+        end
+        invalidate_model
+      }
       @dlg.add_action_callback("update_model_table"){|dialog,params|
         p 'execute callback: update_model_table'
         key,vals=params.split('|')
@@ -96,7 +111,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
       @dlg.add_action_callback("set_view_mode_ornt"){|dialog,params| set_view_mode_orientation}
       @dlg.add_action_callback("set_view_mode_unit"){|dialog,params| set_view_mode_unit}
 
-
     elsif !@dlg.visible?
       @dlg.show
     end
@@ -107,6 +121,22 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     @dlg == nil
     @visible = false
   end
+
+  def fill_selection(key,defaultValue=nil)
+    names=ArchComponents.get_names(key)
+    paramstr=''
+    names.each{|s|
+      paramstr+="'#{s}'"+','
+    }
+    paramstr='['+paramstr[0..-2]+']'
+    if defaultValue !=nil
+      msg="add_select('#{key}',#{paramstr},'#{defaultValue}')"
+    end
+    msg="add_select('unit_type',#{paramstr})"
+    p msg
+    execute_script(msg)
+  end
+
 
   def formatValue(v)
     if v.include? ','
@@ -243,6 +273,15 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     # ///////////////////////
     scores=gp.attribute_dictionary("PrototypeScores").to_a
     update_web_scores(scores)
+
+    # ///////////////////////
+    # update selection
+    # //////////////////////
+
+    unit_type=gp.get_attribute("OperableStates",'sl_htl_rm')
+    execute_script('clear_select_table()')
+    fill_selection('htl_rm',unit_type)
+
   end
 
   def set_web_attribute_table(gp)
@@ -251,19 +290,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     execute_script msg
   end
 
-  def set_gp_attributes(strdata)
-    #TODO: for strdata from HTML dialog
-    trunks=strdata.split(';')
-    data={}
-    trunks.each{|i|
-      k,v=i.split("=>")
-      data[k]=v
-    }
-
-    size=[data['bd_width'],data['bd_depth'],data['bd_height']]
-    Op_Dimension.set_bd_size(@subjectGP,size)
-    @subjectBB.invalidate()
-  end
 
   def set_un_prototype()
     proto=@subjectGP.get_attribute("BuildingBlock","un_prototype")
@@ -286,6 +312,63 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     return if @subjectGP==nil or @subjectBB ==nil
     generator=@subjectBB.get_updator_by_type(BH_Generator)
     generator.enable(Generators::Gen_Units,false,level="level2")
+  end
+
+  def _extract_unit_size(unit_size_str)
+    strs=unit_size_str.split('_')
+    sizestr=strs[-1].split('x')
+    w=sizestr[0].to_f
+    d=sizestr[1].to_f
+    return w,d
+
+  end
+
+  def _gl_add_box_message_param(absgeo,color)
+    # sample message:
+    # add_box(pos,size,rot,color)
+    # add_box([1,1,0],[1,-1,1],0,[1,0.75,0])
+    pos = []
+    size=absgeo.size
+    for i in 0..2
+      pos[i]=absgeo.position[i].to_m
+      size[i]=size[i].to_m * absgeo.reflection[i]
+    end
+    rot=absgeo.rotation
+
+    #turn to string
+    pos=pos.to_s[1..-2]
+    size=size.to_s[1..-2]
+    color=[1,1,1] if color==nil
+    color=color.to_s[1..-2]
+
+    param="[#{pos}],[#{size}],#{rot},[#{color}]"
+    return param
+  end
+  def gl_add_box(absgeo,color=nil)
+    param=_gl_add_box_message_param(absgeo,color)
+    msg="add_box(#{param})"
+    execute_script(msg)
+  end
+  def gl_add_boxes(absgeos,color=nil)
+    param=""
+    color=[1,1,1] if color==nil
+    for g in absgeos
+      param+="[#{_gl_add_box_message_param(g,color)}],"
+    end
+    param=param[0..-1]
+    p param
+    msg="add_boxes([#{param}])"
+    execute_script(msg)
+  end
+
+  def gl_enable_update(flag)
+    msg="enable_update(#{flag.to_s})"
+    execute_script(msg)
+  end
+
+  def gl_clear_all()
+    msg="clear_scene()"
+    execute_script(msg)
   end
 
   def update_web_scores(dataArr)
@@ -336,12 +419,6 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     BH_Interact.set_bd_size(gp,size)
   end
 
-
-  def def_reload(param)
-    p "loading definition..."
-    Definitions.reload()
-    p "def lodaded: #{Definitions.defs}"
-  end
 
   def _convert_num_param(val)
     trunks=val.split(',')

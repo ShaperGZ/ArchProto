@@ -2272,13 +2272,13 @@
       type = d3_format_types.get(type) || d3_format_typeDefault;
       var zcomma = zfill && comma;
       return function(value) {
-        var fullSuffix = suffix;
+        var fullSuffix = prefix;
         if (integer && value % 1) return "";
         var negative = value < 0 || value === 0 && 1 / value < 0 ? (value = -value, "-") : sign === "-" ? "" : sign;
         if (scale < 0) {
           var unit = d3.formatPrefix(value, precision);
           value = unit.scale(value);
-          fullSuffix = unit.symbol + suffix;
+          fullSuffix = unit.symbol + prefix;
         } else {
           value *= scale;
         }
