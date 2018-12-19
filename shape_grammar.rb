@@ -1,4 +1,6 @@
 require 'mesh_util'
+$sg_busy=false
+
 class Repeat
   None=111
   Last=112
@@ -43,27 +45,34 @@ module SG
       $sgui.add_action_callback("set_variables"){|dialog,param|
         # sample str:
         # 'a:12,b:13'
-        g=$sgui_subject
-        nv=param.split(':')
-        # p "1 param=#{param} setting[#{nv[0]}] to #{nv[1]}"
-        g.variables[nv[0]]=nv[1].to_f
-        # p "2 param=#{param} setting[#{nv[0]}] to #{g.variables[nv[0]]}"
-        g.execute()
-        g.update_model()
+        if $sg_busy==false
+          $sg_busy=true
+
+          g=$sgui_subject
+          nv=param.split(':')
+          # p "1 param=#{param} setting[#{nv[0]}] to #{nv[1]}"
+          g.variables[nv[0]]=nv[1].to_f
+          # p "2 param=#{param} setting[#{nv[0]}] to #{g.variables[nv[0]]}"
+          g.invalidate
+          $sg_busy=false
+        end
       }
       $sgui.add_action_callback("set_rule_params"){|dialog,param|
-        # sample param:
-        # '1|Flip|In:B;Out:B;axis:0;repeat:111'
-        index,rname,params=param.split('|')
-        # p "input string = #{param}"
-        # p "index=#{index} rname=#{rname} params=#{params}"
+        if $sg_busy==false
+          $sg_busy=true
+          # sample param:
+          # '1|Flip|In:B;Out:B;axis:0;repeat:111'
+          index,rname,params=param.split('|')
+          # p "input string = #{param}"
+          # p "index=#{index} rname=#{rname} params=#{params}"
 
-        index=index.to_i
-        g=$sgui_subject
-        rule=g.rules[index]
-        rule.set_params(params)
-        g.execute()
-        g.update_model()
+          index=index.to_i
+          g=$sgui_subject
+          rule=g.rules[index]
+          rule.set_params(params)
+          g.invalidate
+          $sg_busy=false
+        end
       }
     end
 
@@ -80,7 +89,7 @@ module SG
         counter+=1
       }
       msg="create_variables('#{creationStr}')"
-      p "create_variables string = #{msg}"
+      # p "create_variables string = #{msg}"
       $sgui.execute_script(msg)
     end
     def SGUI.create_ui()
@@ -97,7 +106,7 @@ module SG
 
 
       msg="create_ui('#{creationStr}')"
-      p "creation string = #{msg}"
+      # p "creation string = #{msg}"
       $sgui.execute_script(msg)
     end
   end
@@ -193,7 +202,13 @@ module SG
         @in_names=in_names.split(',')
       end
 
-      out_names=paramsStrs[1].split(':')[1].split(',')
+      out_names=paramsStrs[1].split(':')[1]
+      if out_names!=nil
+        out_names=out_names.split(',')
+      else
+        out_names=[]
+      end
+
     end
   end
 
@@ -513,9 +528,43 @@ module SGRules
       # p "2 post clear container=#{@container} ents.size=#{@container.entities.size}"
 
       MeshUtil.add_geos_to_model(@outputs,@container,0)
+      @rules.each{|r|
+        if r.is_a? Convert
+          r.add_model(@container)
+        end
+      }
+
       # Sketchup.active_model.commit_operation
       # p "3 post add_model container=#{@container} ents.size=#{@container.entities.size}"
     end
+
+    def invalidate()
+      execute()
+      update_model()
+    end
+  end
+
+  class Comment<SG::Rule
+    def initialize(msg)
+      super(nil,nil)
+      @msg=msg
+      @name='comment'
+    end
+
+    def execute()
+      @outputs=@inputs
+    end
+
+    def set_params()
+      paramStrs=paramStr.split(';')
+      @msg=paramStrs[0].split(':')[1]
+    end
+
+    def format()
+      txt="#{@name}|msg:#{@msg}"
+      return txt
+    end
+
   end
 
   class Extend<SG::RuleTemplateStd
@@ -603,6 +652,165 @@ module SGRules
     end
   end
 
+  class Translate < SG::Rule
+    def initialize(in_names,out_names,offsets,axis)
+      super(in_names,out_names)
+      @offsets=offsets
+      @axis=axis
+      @name='Translate'
+    end
+
+    def execute()
+      @outputs=[]
+      @inputs.each{|g|
+        g=SG::Rule._extract_geo(g)
+        moved=[]
+        if @in_names.include? g.name or @in_names.size==0
+          moved+=_create_translation(g)
+        else
+          @outputs<<g
+        end
+
+        if moved.size>0
+          assign_names(moved)
+          @outputs+=moved
+        end
+
+      }
+    end
+
+    def _create_translation(g)
+      vects=g.vects[@axis]
+      moved_gs=[]
+      offsets,mode=_interpret_offsets(@offsets)
+      gsizei=g.size[@axis]
+      for d in offsets
+        dup=g.clone()
+        if d!=0
+          v=vects.clone
+          if mode=='length'
+            v.length=d.m
+          else
+            v.length=d*gsizei
+          end
+
+          dup.translate(v)
+        end
+        moved_gs<<dup
+      end
+      return moved_gs
+    end
+
+    def _interpret_offsets(offsetstr)
+      mode='length'
+      if offsetstr[0]=='r'
+        mode='ratio'
+        offsetstr=offsetstr[1..-1]
+      end
+
+      # p "@offset=#{@offsets} post offsetstr=#{offsetstr}"
+      strs=offsetstr.split(',')
+      offsets=[]
+      strs.each{|s|
+          offsets<<s.to_f
+      }
+      return offsets,mode
+    end
+
+    def set_params(paramStr)
+      super(paramStr)
+      paramStrs=paramStr.split(';')
+      @offsets=paramStrs[2].split(':')[1]
+      @axis=paramStrs[3].split(':')[1].to_i
+    end
+
+    def format_params()
+      txt="offsets:#{@offsets};axis:#{@axis}"
+      return txt
+    end
+
+
+
+  end
+
+  class Convert<SG::Rule
+    # converts the model to components
+    # later convert the comp_name to file name
+    def initialize(in_names,comp_name,mode=0)
+      super(in_names,'')
+      @name='Convert'
+      @compname=comp_name
+      @skp_comps=[]
+      @mode=mode
+    end
+
+    def execute()
+      @outputs=[]
+      @skp_comps=[]
+      @inputs.each{|g|
+        g=SG::Rule._extract_geo(g)
+        if @in_names.include? g.name or @in_names.size==0
+          comp=SG::SGSkpComponent.new(@compname)
+          comp.transformation=g.transformation
+          comp.mode=@mode
+          @skp_comps<<comp
+        else
+          @outputs<<g
+        end
+      }
+    end
+
+    def add_model(container)
+      @skp_comps.each{|sgc|
+        sgc.add_model(container) if sgc.definition!=nil
+      }
+    end
+
+    def set_params(paramStr)
+      super(paramStr)
+      paramStrs=paramStr.split(';')
+      @compname=paramStrs[2].split(':')[1]
+      @mode=paramStrs[3].split(':')[1].to_i
+    end
+
+    def format_params()
+      txt="comp:#{@compname};mode:#{@mode}"
+      return txt
+    end
+  end
+
+  class Union<SG::Rule
+    def initialize(in_names,out_names)
+      super(in_names,out_names)
+      @name='Union'
+    end
+
+    def execute()
+      @unused=[]
+      @outputs=[]
+      pool=[]
+      @inputs.each{|g|
+        g=SG::Rule._extract_geo(g)
+        if @in_names.include? g.name or @in_names.size==0
+          pool<<g
+        else
+          @unused<<g
+        end
+      }
+      merged=MeshUtil.union_sgos(pool)
+      @outputs<<merged
+      assign_names(@outputs)
+
+      @outputs+=@unused
+    end
+
+
+    def format_params()
+      return ''
+    end
+
+  end
+
   class Remove<SG::Rule
     def initialize(in_names)
       super(in_names,nil)
@@ -627,6 +835,8 @@ module SGRules
     end
 
   end
+
+
 
   class SplitEqual<SG::Rule
     def initialize(in_names,out_names,div,axis,stretch=true)
@@ -656,9 +866,6 @@ module SGRules
         @stretch=false
       end
     end
-
-
-
 
     def execute()
       @unused=[]
@@ -801,6 +1008,7 @@ class SGInvalidator
     @subjects=[]
     @states=Hash.new
     @grammars=[]
+    @timer=nil
   end
 
   def clear_grammars()
@@ -812,6 +1020,10 @@ class SGInvalidator
 
   def add(ent)
     @states[ent]={}
+  end
+
+  def clear()
+    @states=[]
   end
 
   def add_range(ents)
@@ -826,13 +1038,14 @@ class SGInvalidator
     rescue
     end
 
-    $sgi_timer=UI.start_timer(1,true){
+    $sgi_timer=UI.start_timer(0.01,true){
       begin
         invalidate
       rescue
 
       end
     }
+    @timer=$sgi_timer
   end
 
   def stop_timer()
@@ -840,6 +1053,7 @@ class SGInvalidator
   end
 
   def invalidate(forced=false)
+    return if $sg_busy or states.size<1 or states==nil
     $sg_busy=true
     sels=Sketchup.active_model.selection.to_a
     invalidated_grammars=[]
@@ -854,9 +1068,7 @@ class SGInvalidator
     end # for s
 
     for g in invalidated_grammars
-      g.execute
-      g.update_model
-      # g.update_individual_model
+      g.invalidate
     end
     $sg_busy=false
     nil
@@ -905,6 +1117,21 @@ def sgtest1
 
     end
   end
+end
+
+def sgctest
+  $g=SGRules::Grammar.create()
+  $g.add(SGRules::Split.new('','A,B','r0.3,',0,Repeat::None))
+  $g.add(SGRules::Split.new('','C,D','r0.2,',0,Repeat::None))
+  $g.add(SGRules::FlipAxis.new('B','A',[-1,1,1]))
+  $g.add(SGRules::Convert.new('A','green',1))
+  $sgi=SGInvalidator.new
+  $sgi.add_grammar $g
+  $sgi.add_range($g.inputs)
+  $sgi.invalidate
+  SG::SGUI.create $g
+
+  $sgi.reset_timer
 end
 
 def sgtest

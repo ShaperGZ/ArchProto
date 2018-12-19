@@ -663,6 +663,23 @@ module MeshUtil
     return mesh
   end
 
+  def MeshUtil.union_sgos(sgos)
+    gs=[]
+    sgos.each{|sg|
+      gs<<MeshUtil.add_model(sg.mesh)
+    }
+
+    outg=gs[0]
+    for i in 1..gs.size-1
+      outg=outg.union(gs[i]) if gs[i].is_a? Sketchup::Group
+    end
+    outsgo=outg.create_sgo
+    outg.erase!
+    return outsgo
+  end
+
+
+
   def MeshUtil.split_mesh(plane,mesh,cap=true)
     plane[0]=Geom::Point3d.new(*plane[0]) if plane[0].is_a? Array
     normal=Geom::Vector3d.new(*plane[1])
@@ -838,6 +855,7 @@ module SG
     attr_accessor :name
     attr_accessor :color
     attr_accessor :material
+    attr_accessor :anchor_reflection
 
     def SGObject.create(g=nil)
 
@@ -926,12 +944,24 @@ module SG
       @material=nil
     end
 
+    def clone()
+      dup=SGObject.new
+      dup.transformation=@transformation
+      dup.name=@name
+      dup.color=@color.clone if @color!=nil
+      dup.base_mesh=MeshUtil.clone_mesh(@base_mesh)
+      dup.base_vect=@base_vect.clone
+      dup.material=@material
+      dup.anchor_reflection=@anchor_reflection
+      return dup
+    end
+
     def set_anchor_reflection_values_only(reflection)
       @anchor_reflection=reflection
     end
 
     def transformation=(val)
-      @transformation=val if val.si_a? Geom::Transformation
+      @transformation=val if val.is_a? Geom::Transformation
     end
 
     def _update_transform(nsize=nil,nrot=nil,npos=nil)
@@ -1000,6 +1030,15 @@ module SG
 
     def position
       return @transformation.origin
+    end
+
+    def translate(v)
+      pos=position()
+      npos=pos+v
+
+      f,r,s=SGObject._reflection_rotation_size(@transformation)
+      p=npos
+      _update_transform(s,r,p)
     end
 
     def position=(val)
@@ -1199,6 +1238,77 @@ module SG
         out_mesh.add_polygon(pts)
       end
       return out_mesh
+    end
+  end
+
+  class SGSkpComponent < SGObject
+    attr_accessor :definition_name
+    attr_accessor :definition_path
+    attr_accessor :definition
+    # mode: is how to scale the component
+    # 0: comp size = sgo size
+    # 1: comp size = comp size
+    # 2: comp size = min size
+    # 3: comp size = max size
+    attr_accessor :mode
+    def initialize(def_name, mode=1)
+      super()
+      set_definition(def_name)
+      @mode=mode
+    end
+
+    def set_definition(name)
+      if name.include? '.skp'
+        # TODO: Load definition is not loaded
+        @definition_path=name
+      else
+        @definition_name=name
+        @definition=Sketchup.active_model.definitions[name]
+      end
+    end
+
+    def add_model(container)
+      scale=[1,1,1]
+      if @mode == 0
+        bounds=@definition.bounds
+        def_size=[bounds.width,bounds.height,bounds.depth]
+        3.times{|i|
+          scale[i]=1/def_size[i]
+        }
+      elsif @mode == 1
+        sgo_size=size()
+        3.times{|i| scale[i]=1/sgo_size[i].abs}
+      elsif @mode == 2
+        sgo_size=size()
+        3.times{|i|
+          if sgo_size[i].abs<def_size[i]
+            min=sgo_size[i].abs
+          else
+            min=def_size[i]
+          end
+          scale[i]=1/min
+        }
+      else
+        sgo_size=size()
+        3.times{|i|
+          if sgo_size[i].abs>def_size[i]
+            max=sgo_size[i].abs
+          else
+            max=def_size[i]
+          end
+          scale[i]=1/max
+        }
+      end
+      # p "mode=#{@mode} scale=#{scale} reflection=#{f}"
+
+      o=container.entities.add_instance(@definition,Geom::Transformation.new)
+      o.transform! ArchUtil.Transformation_scale_3d(scale)
+      o.transform! @transformation
+      return o
+    end
+
+    def mesh()
+      raise ScriptError("SG Component dosn't support .mesh()")
     end
   end
 end
