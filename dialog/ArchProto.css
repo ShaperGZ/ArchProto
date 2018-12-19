@@ -2,6 +2,12 @@
     font-family:"Segoe UI";
     font-size: 12px;
 }
+.boldtitles{
+    font-family:"Segoe UI";
+    font-size: 12px;
+    font-weight: bold;
+    color: gray;
+}
 .contents{
     font-family:"Segoe UI";
     font-size:10px;

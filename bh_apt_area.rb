@@ -20,7 +20,9 @@ class BH_Apt_Area < Arch::BlockUpdateBehaviour
     evacuation=@host.get_updator_by_type(BH_Evacuation)
     abs_geo_comp=composition.abstract_geometries
     abs_geo_evac=evacuation.abstract_geometries
+
     for g in abs_geo_comp
+      # p "#{g.name}: #{g.area.to_m.to_m}"
       if g.name[0]=='O'
         @area_occupy+=g.area.to_m.to_m
       end
@@ -45,8 +47,12 @@ class BH_Apt_Area < Arch::BlockUpdateBehaviour
     @fc_score=fc_remain/fc_base
     firecomp_dscr="#{@area_ttl.round(2)/fc_base} compartments @1500sqm each"
 
-    p "area_ttl = #{@area_ttl}"
-
+    # p "area_ttl = #{@area_ttl}"
+    floors=(@host.attr('bd_height')/3).round
+    gfa=floors * @area_ttl
+    WD_Interact.singleton.set_web_area(gfa.round)
+    @gp.set_attribute("BuildingBlock","GFA",gfa)
+    @gp.set_attribute("BuildingBlock","BaseFloorArea",@area_ttl)
     @gp.set_attribute("PrototypeScores","FireCompt",[@fc_score,firecomp_dscr])
     @gp.set_attribute("PrototypeScores","Efficiency",[@efficency,eff_dscr])
 

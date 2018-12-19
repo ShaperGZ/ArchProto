@@ -253,7 +253,10 @@ module MeshUtil
     end
 
     def clone()
-      return AttrComposit.new(mesh())
+      # return AttrComposit.new(mesh())
+      dup = AttrComposit.new(mesh())
+            dup.name=@name
+            return dup
     end
 
     def add_abs_geometries(geos)
@@ -411,6 +414,7 @@ module MeshUtil
       dup.reflection=@reflection
       dup.rotation=@rotation
       dup.alignment=@alignment
+      dup.name=@name
       return dup
     end
 
@@ -446,10 +450,11 @@ module MeshUtil
 
     def clone()
       dup=AttrBox.new
-      dup.position=@position
-      dup.vects=@vects
-      dup.size=@size
-      dup.reflection=@reflection
+      dup.position=@position.clone
+      # dup.vects=@vects
+      dup.size=@size.clone
+      dup.reflection=@reflection.clone
+      dup.name=@name
       dup.rotation=@rotation
       dup.alignment=@alignment
       return dup

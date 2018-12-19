@@ -21,7 +21,7 @@ class BH_Orientation < Arch::BlockUpdateBehaviour
         sf=1-cluster.south_factor
         wf=1-cluster.west_factor
 
-        p "#{cluster.name} sf:#{sf} wf:#{wf}"
+        # p "#{cluster.name} sf:#{sf} wf:#{wf}"
 
         # orientation scores
         score=possible_min+sf-(wf/2)
