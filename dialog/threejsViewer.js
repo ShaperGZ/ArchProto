@@ -1,5 +1,5 @@
 var canvasW=260;
-var canvasH=150;
+var canvasH=100;
 var container = document.getElementById("threejs_container")
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera( 75, canvasW/canvasH, 0.1, 1000 );
@@ -63,7 +63,7 @@ function init(){
     //add_box([0.5,0.3,0],[1,1,1.5]);
     //add_box_m(10);
     //add_box_4();
-    add_test_units()
+    // add_test_units()
     refresh() ;
     console.log("done");
 

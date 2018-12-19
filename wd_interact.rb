@@ -225,6 +225,11 @@ class WD_Interact < ArchProto::HTMLDialogWrapper
     invalidate_model
   end
 
+  def set_web_area(area)
+    msg="set_area(#{area})"
+    execute_script msg
+  end
+  
   def set_view_mode_normal()
 
   end

@@ -218,7 +218,7 @@ class ChartAptScore{
         this.totalScore*=100;
         this.totalScore=Math.round(this.totalScore)
         this.totalScore/=10;
-
+        weighted_score=this.totalScore
     }
 
     invalidate(data){

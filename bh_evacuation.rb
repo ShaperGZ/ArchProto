@@ -104,9 +104,14 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
 
     # this gets dict list of bool
     # keys are:["double","L-shape","U-shape","O-shape"]
-    p "composition is #{bh_composition}"
+    # p "composition is #{bh_composition}"
     shapes=bh_composition.composition()
-    comp_abs_geo=bh_composition.abstract_geometries
+    # comp_abs_geo=bh_composition.abstract_geometries
+    comp_abs_geo=[]
+    for ag in bh_composition.abstract_geometries
+      nag=ag.clone
+      comp_abs_geo<<nag
+    end
     circulations=[]
     segments=[]
 
@@ -119,7 +124,7 @@ class BH_Evacuation < Arch::BlockUpdateBehaviour
     un_depth = host.attr('un_depth')
 
     offset=un_depth.m
-    p "-------------------------------------"
+    # p "-------------------------------------"
 
     # 1 get corridors in order from abstract geometries in composition
     corridors_ordered_names=['C2','C1','C3','C4']

@@ -91,7 +91,7 @@ class BH_Apt_Composition < Arch::BlockUpdateBehaviour
       # Straight double loaded
       #   1. occupy
       rw = un_depth
-      p1 = local_bounds.min.to_m
+      p1 = local_bounds.min
       s1 = [bd_width, un_depth, bd_height]
       create_geometry("O1",p1,s1)
 

@@ -24,8 +24,18 @@
     </tb>
 </table>
 <form>
+    <!--area dispaly -->
+    <span class="contents"> Capless:</span>
+    <Span id="sp_area_score1" class="boldtitles">0</Span><br>
+    <span class="contents"> Accuracy:</span>
+    <Span id="sp_area_score2" class="boldtitles">0</Span><br>
+    <span class="contents"> Trg Area:</span>
+    <input type="text" id="tb_area_value" class="contents" style="width: 50px;height: 10px">
+    <span class="contents"> Actual Area:</span>
+    <Span id="sp_area_value" class="titles">0</Span><br>
+
     <!--customize composition-->
-    <span id="title" class="titles" > Composition Customization</span><br>
+    <!--<span id="title" class="titles" > Composition Customization</span><br>-->
     <table >
         <tbody>
             <tr>
@@ -99,6 +109,7 @@
         {"name":scoreNames[4],"value":0.75, "flag":true, "weight":0.4,"description":""},
         {"name":scoreNames[5],"value":0.95, "flag":true, "weight":0.3,"description":""},
     ];
+    weighted_score=0
 
     var colorRatio=d3.scale.linear()
         .domain([0.1,1,1.9])
@@ -376,6 +387,25 @@
         window.location='skp:log@'+msg
     }
 
+    function set_area(area){
+        var tb_trg_area=document.getElementById("tb_area_value")
+        var area_value=document.getElementById("sp_area_value")
+        // score1 is capless, score2 is for accuracy
+        var area_score1=document.getElementById("sp_area_score1")
+        var area_score2=document.getElementById("sp_area_score2")
+        trg_area=parseFloat(tb_trg_area.value)
+        console.log('trg area='+trg_area)
+        if (!isNaN(trg_area)){
+            accuracy=Math.abs(trg_area-area)/trg_area
+            accuracy=1-accuracy
+            accuracy*=100
+            accuracy=Math.round(accuracy)
+            area_score2.innerHTML=Math.round(accuracy/10*weighted_score)/10 + '('+accuracy+'%)'
+        }
+
+        area_score1.innerHTML=Math.round(weighted_score*(area/10000)*10)/10
+        area_value.innerHTML=area
+    }
 
     function set_gp_attributes_on_value_entry(name,value){
         // when "enter" is pressed, record ALL values on the table

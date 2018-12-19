@@ -101,7 +101,9 @@ class BH_Load_component< Arch::BlockUpdateBehaviour
         nrefpos=refpos+vect
         nrefpos[2]=position[2]
         # p "cluster=#{cluster.name} refpos=#{refpos} vect=#{vect} nrefpos=#{nrefpos}"
-        d=nrefpos.distance(position)
+        # d=nrefpos.distance(position)
+        nrefpos=Geom::Point3d.new(*nrefpos)
+        d=nrefpos.distance(Geom::Point3d.new(*position))
         # p " >>>>> NOT FOUND d=#{d} position=#{position} return:#{nrefpos}"
         if d<closest
           closest = d
@@ -176,7 +178,7 @@ class BH_Load_component< Arch::BlockUpdateBehaviour
     for c in str_cores
       geos=MeshUtil.create_from_definition(str_def)
       for g in geos
-        p "g is a #{g.class}"
+        # p "g is a #{g.class}"
         g.size[2]=(bd_height+3).m
         g.position=c.attributes['true_position']
         g.rotation=c.rotation
